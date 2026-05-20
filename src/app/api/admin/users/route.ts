@@ -66,12 +66,17 @@ export async function POST(request: Request) {
 
   const { data: currentProfile, error: currentProfileError } = await admin
     .from("profiles")
-    .select("id,is_admin,status")
-    .eq("id", currentUser.id)
+    .select("id,email,is_admin,status")
+    .or(`id.eq.${currentUser.id},email.eq.${currentUser.email ?? ""}`)
     .maybeSingle();
 
   if (currentProfileError || !currentProfile?.is_admin || currentProfile.status !== "active") {
-    return NextResponse.json({ error: "Accesso non autorizzato." }, { status: 403 });
+    return NextResponse.json(
+      {
+        error: `Accesso non autorizzato. Utente sessione: ${currentUser.email ?? currentUser.id}. Profilo admin trovato: ${currentProfile?.email ?? "no"}.`
+      },
+      { status: 403 }
+    );
   }
 
   const { data: authResult, error: authError } = await admin.auth.admin.createUser({
