@@ -14,6 +14,8 @@ import {
   LogOut,
   MoreHorizontal,
   Plus,
+  Eye,
+  EyeOff,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -65,6 +67,9 @@ export function AdminSuite() {
   const [programFilter, setProgramFilter] = useState<ProgramSlug | "all">("all");
   const [licenseFilter, setLicenseFilter] = useState("all");
   const [query, setQuery] = useState("");
+  const [showEmails, setShowEmails] = useState(false);
+  const [credentialsUser, setCredentialsUser] = useState<AdminUser | null>(null);
+  const [detailsUser, setDetailsUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -126,6 +131,19 @@ export function AdminSuite() {
       return;
     }
     setUsers((current) => current.filter((item) => item.id !== user.id));
+  }
+
+  async function handleResetPassword(user: AdminUser) {
+    const confirmed = window.confirm(`Inviare a ${user.email} una email per reimpostare la password?`);
+    if (!confirmed) return;
+
+    const response = await fetch(`/api/admin/users/${user.id}/reset-password`, { method: "POST" });
+    const result = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+    if (!response.ok) {
+      window.alert(result?.error || "Email di recupero non inviata.");
+      return;
+    }
+    window.alert(result?.message || "Email di recupero password inviata.");
   }
 
   async function handleLogout() {
@@ -214,6 +232,11 @@ export function AdminSuite() {
               setLicenseFilter={setLicenseFilter}
               onCreateUser={() => setIsCreateUserOpen(true)}
               onDeleteUser={handleDeleteUser}
+              onResetPassword={handleResetPassword}
+              onShowCredentials={setCredentialsUser}
+              onShowDetails={setDetailsUser}
+              showEmails={showEmails}
+              setShowEmails={setShowEmails}
             />
           )}
           {activeSection === "programs" && <ProgramsSection />}
@@ -237,6 +260,8 @@ export function AdminSuite() {
           onSubmit={handleCreateUser}
         />
       )}
+      {credentialsUser && <CredentialsModal user={credentialsUser} onClose={() => setCredentialsUser(null)} onResetPassword={handleResetPassword} />}
+      {detailsUser && <UserDetailsModal user={detailsUser} onClose={() => setDetailsUser(null)} />}
     </main>
   );
 }
@@ -335,7 +360,12 @@ function UsersSection({
   licenseFilter,
   setLicenseFilter,
   onCreateUser,
-  onDeleteUser
+  onDeleteUser,
+  onResetPassword,
+  onShowCredentials,
+  onShowDetails,
+  showEmails,
+  setShowEmails
 }: {
   users: AdminUser[];
   query: string;
@@ -346,10 +376,15 @@ function UsersSection({
   setLicenseFilter: (value: string) => void;
   onCreateUser: () => void;
   onDeleteUser: (user: AdminUser) => void;
+  onResetPassword: (user: AdminUser) => void;
+  onShowCredentials: (user: AdminUser) => void;
+  onShowDetails: (user: AdminUser) => void;
+  showEmails: boolean;
+  setShowEmails: (value: boolean) => void;
 }) {
   return (
     <Panel title="Gestione utenti" action="Nuovo utente" onAction={onCreateUser}>
-      <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_220px_220px]">
+      <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_220px_220px_auto]">
         <label className="relative">
           <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98a2b3]" />
           <input
@@ -381,6 +416,14 @@ function UsersSection({
           <option value="expired">Scadute</option>
           <option value="suspended">Sospese</option>
         </select>
+        <button
+          type="button"
+          onClick={() => setShowEmails(!showEmails)}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#d0d5dd] bg-white px-4 py-3 text-sm font-bold text-[#344054] hover:border-[#175cd3] hover:text-[#175cd3]"
+        >
+          {showEmails ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {showEmails ? "Nascondi email" : "Mostra email"}
+        </button>
       </div>
       <Table>
         <thead>
@@ -398,7 +441,7 @@ function UsersSection({
               <Td>
                 <div>
                   <p className="font-bold">{user.name}</p>
-                  <p className="text-sm text-[#667085]">{user.email}</p>
+                  <p className="text-sm text-[#667085]">{showEmails ? user.email : maskEmail(user.email)}</p>
                   <p className="text-xs text-[#98a2b3]">{user.company} · {user.city}</p>
                 </div>
               </Td>
@@ -419,9 +462,9 @@ function UsersSection({
               <Td><span className="numeric text-sm font-semibold">{user.lastAccess}</span></Td>
               <Td>
                 <div className="flex flex-wrap gap-2">
-                  <IconButton label="Reset password" icon={RotateCcw} />
-                  <IconButton label="Credenziali" icon={KeyRound} />
-                  <IconButton label="Altro" icon={MoreHorizontal} />
+                  <IconButton label="Reset password" icon={RotateCcw} onClick={() => onResetPassword(user)} />
+                  <IconButton label="Credenziali" icon={KeyRound} onClick={() => onShowCredentials(user)} />
+                  <IconButton label="Dettagli" icon={MoreHorizontal} onClick={() => onShowDetails(user)} />
                   <button
                     onClick={() => onDeleteUser(user)}
                     className="rounded-xl border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-xs font-bold text-[#b42318] hover:bg-[#fee4e2]"
@@ -697,11 +740,111 @@ function Badge({ value, label }: { value: string; label: string }) {
   );
 }
 
-function IconButton({ label, icon: Icon }: { label: string; icon: ComponentType<{ className?: string }> }) {
+function maskEmail(email: string) {
+  const [name, domain] = email.split("@");
+  if (!name || !domain) return email;
+  const visible = name.slice(0, Math.min(2, name.length));
+  return `${visible}${"*".repeat(Math.max(3, name.length - visible.length))}@${domain}`;
+}
+
+function IconButton({ label, icon: Icon, onClick }: { label: string; icon: ComponentType<{ className?: string }>; onClick?: () => void }) {
   return (
-    <button title={label} className="grid h-9 w-9 place-items-center rounded-xl border border-[#d9e2ef] bg-white text-[#516079] hover:border-[#175cd3] hover:text-[#175cd3]">
+    <button
+      type="button"
+      title={label}
+      onClick={onClick}
+      className="grid h-9 w-9 place-items-center rounded-xl border border-[#d9e2ef] bg-white text-[#516079] hover:border-[#175cd3] hover:text-[#175cd3]"
+    >
       <Icon className="h-4 w-4" />
     </button>
+  );
+}
+
+function CredentialsModal({ user, onClose, onResetPassword }: { user: AdminUser; onClose: () => void; onResetPassword: (user: AdminUser) => void }) {
+  async function copyEmail() {
+    await navigator.clipboard.writeText(user.email).catch(() => undefined);
+    window.alert("Email copiata.");
+  }
+
+  return (
+    <ModalShell title="Credenziali utente" onClose={onClose}>
+      <div className="grid gap-4">
+        <div className="rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-5">
+          <p className="text-sm font-semibold text-[#667085]">Email di accesso</p>
+          <p className="mt-2 break-all text-xl font-bold text-[#101828]">{user.email}</p>
+          <p className="mt-3 text-sm leading-6 text-[#667085]">
+            La password non può essere visualizzata per sicurezza. Puoi inviare una email di recupero password al cliente.
+          </p>
+        </div>
+        <div className="grid gap-2">
+          {user.accesses.map((access) => (
+            <div key={`${user.id}-${access.program}`} className="rounded-2xl border border-[#edf2f7] bg-white p-4">
+              <p className="font-bold">{programName(access.program)}</p>
+              <p className="mt-1 text-sm text-[#667085]">{access.role} · {licenseLabel(access.licenseType)} · {access.licenseStatus}</p>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap justify-end gap-3">
+          <button type="button" onClick={copyEmail} className="rounded-2xl border border-[#d0d5dd] px-5 py-3 font-bold text-[#344054]">
+            Copia email
+          </button>
+          <button type="button" onClick={() => onResetPassword(user)} className="rounded-2xl bg-[#123c69] px-5 py-3 font-bold text-white">
+            Invia recupero password
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+function UserDetailsModal({ user, onClose }: { user: AdminUser; onClose: () => void }) {
+  return (
+    <ModalShell title="Dettagli cliente" onClose={onClose}>
+      <div className="grid gap-4">
+        <div className="rounded-3xl border border-[#d9e2ef] bg-white p-5">
+          <h3 className="text-xl font-bold">{user.name}</h3>
+          <p className="mt-1 break-all text-sm text-[#667085]">{user.email}</p>
+          <p className="mt-3 text-sm text-[#667085]">{user.company} · {user.city}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Badge value={user.status} label={user.status === "active" ? "Attivo" : "Sospeso"} />
+            <span className="rounded-full border border-[#d0d5dd] px-3 py-1 text-xs font-bold text-[#516079]">Ultimo accesso: {user.lastAccess}</span>
+          </div>
+        </div>
+        <div className="grid gap-3">
+          {user.accesses.map((access) => (
+            <div key={`${user.id}-${access.program}`} className="rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h4 className="text-lg font-bold">{programName(access.program)}</h4>
+                <Badge value={access.licenseStatus} label={access.licenseStatus} />
+              </div>
+              <div className="mt-3 grid gap-2 text-sm text-[#516079] md:grid-cols-2">
+                <p><span className="font-bold text-[#344054]">Ruolo:</span> {access.role}</p>
+                <p><span className="font-bold text-[#344054]">Licenza:</span> {licenseLabel(access.licenseType)}</p>
+                <p><span className="font-bold text-[#344054]">Inizio:</span> {access.startDate || "-"}</p>
+                <p><span className="font-bold text-[#344054]">Fine:</span> {access.endDate || "Nessuna scadenza"}</p>
+                <p><span className="font-bold text-[#344054]">Progetti:</span> {access.projectsPurchased ? `${access.projectsUsed}/${access.projectsPurchased}` : "Illimitati"}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#101828]/45 px-4 py-8 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] bg-white p-6 soft-shadow">
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
+          <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full bg-[#f2f4f7] text-[#516079]">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 

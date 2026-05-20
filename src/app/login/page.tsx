@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -31,6 +32,27 @@ export default function LoginPage() {
       return;
     }
     window.location.href = "/admin";
+  }
+
+  async function sendPasswordRecovery() {
+    setMessage("");
+    if (!email) {
+      setMessage("Inserisci prima la tua email nel campo sopra.");
+      return;
+    }
+    if (!hasSupabaseBrowserConfig()) {
+      setMessage("Configurazione Supabase non presente.");
+      return;
+    }
+
+    setLoading(true);
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`
+    });
+    setLoading(false);
+
+    setMessage(error ? error.message : "Email di recupero password inviata, se l'indirizzo e registrato.");
   }
 
   return (
@@ -77,6 +99,30 @@ export default function LoginPage() {
           >
             {loading ? "Accesso in corso..." : "Entra nel pannello"}
           </button>
+          <button
+            type="button"
+            onClick={() => setRecoveryOpen(!recoveryOpen)}
+            className="text-center text-sm font-semibold text-[#175cd3]"
+          >
+            Non ricordi email o password?
+          </button>
+          {recoveryOpen && (
+            <div className="rounded-2xl border border-[#d9e2ef] bg-[#f8fafc] p-4 text-sm leading-6 text-[#516079]">
+              <p>
+                Se ricordi l&apos;email, puoi ricevere un link per impostare una nuova password.
+              </p>
+              <button
+                type="button"
+                onClick={sendPasswordRecovery}
+                className="mt-3 rounded-xl bg-white px-4 py-2 font-bold text-[#123c69] ring-1 ring-[#c7d7ee]"
+              >
+                Invia recupero password
+              </button>
+              <p className="mt-3">
+                Se non ricordi l&apos;email di accesso, chiedi all&apos;amministratore di verificare la tua scheda cliente nel Master Admin.
+              </p>
+            </div>
+          )}
           <Link className="text-center text-sm font-semibold text-[#175cd3]" href="/admin">
             Apri pannello demo locale
           </Link>
