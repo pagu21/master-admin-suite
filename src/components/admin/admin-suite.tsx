@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ComponentType, FormEvent, ReactNode } from "react";
 import {
   AlertCircle,
@@ -66,6 +66,21 @@ export function AdminSuite() {
   const [licenseFilter, setLicenseFilter] = useState("all");
   const [query, setQuery] = useState("");
 
+  useEffect(() => {
+    let ignore = false;
+    async function loadUsers() {
+      const response = await fetch("/api/admin/users", { cache: "no-store" });
+      const result = (await response.json().catch(() => null)) as { users?: AdminUser[] } | null;
+      if (!ignore && response.ok && result?.users) {
+        setUsers(result.users);
+      }
+    }
+    loadUsers().catch(() => undefined);
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
       const byQuery = [user.name, user.email, user.company, user.city].join(" ").toLowerCase().includes(query.toLowerCase());
@@ -92,6 +107,19 @@ export function AdminSuite() {
     setUsers((current) => [result.user as AdminUser, ...current]);
     setIsCreateUserOpen(false);
     setActiveSection("users");
+  }
+
+  async function handleDeleteUser(user: AdminUser) {
+    const confirmed = window.confirm(`Eliminare definitivamente ${user.name}?\n\nL'utente verra rimosso da Supabase Auth e dal Master Admin.`);
+    if (!confirmed) return;
+
+    const response = await fetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
+    const result = (await response.json().catch(() => null)) as { error?: string } | null;
+    if (!response.ok) {
+      window.alert(result?.error || "Utente non eliminato.");
+      return;
+    }
+    setUsers((current) => current.filter((item) => item.id !== user.id));
   }
 
   async function handleLogout() {
@@ -179,6 +207,7 @@ export function AdminSuite() {
               licenseFilter={licenseFilter}
               setLicenseFilter={setLicenseFilter}
               onCreateUser={() => setIsCreateUserOpen(true)}
+              onDeleteUser={handleDeleteUser}
             />
           )}
           {activeSection === "programs" && <ProgramsSection />}
@@ -194,6 +223,7 @@ export function AdminSuite() {
       {isCreateUserOpen && (
         <CreateUserModal
           message={createUserMessage}
+          users={users}
           onClose={() => {
             setIsCreateUserOpen(false);
             setCreateUserMessage("");
@@ -298,7 +328,8 @@ function UsersSection({
   setProgramFilter,
   licenseFilter,
   setLicenseFilter,
-  onCreateUser
+  onCreateUser,
+  onDeleteUser
 }: {
   users: AdminUser[];
   query: string;
@@ -308,6 +339,7 @@ function UsersSection({
   licenseFilter: string;
   setLicenseFilter: (value: string) => void;
   onCreateUser: () => void;
+  onDeleteUser: (user: AdminUser) => void;
 }) {
   return (
     <Panel title="Gestione utenti" action="Nuovo utente" onAction={onCreateUser}>
@@ -384,6 +416,12 @@ function UsersSection({
                   <IconButton label="Reset password" icon={RotateCcw} />
                   <IconButton label="Credenziali" icon={KeyRound} />
                   <IconButton label="Altro" icon={MoreHorizontal} />
+                  <button
+                    onClick={() => onDeleteUser(user)}
+                    className="rounded-xl border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-xs font-bold text-[#b42318] hover:bg-[#fee4e2]"
+                  >
+                    Elimina
+                  </button>
                 </div>
               </Td>
             </tr>
@@ -662,6 +700,8 @@ function IconButton({ label, icon: Icon }: { label: string; icon: ComponentType<
 }
 
 type CreateUserPayload = {
+  mode: "new" | "existing";
+  existingUserId: string;
   fullName: string;
   email: string;
   password: string;
@@ -679,15 +719,19 @@ type CreateUserPayload = {
 
 function CreateUserModal({
   message,
+  users,
   onClose,
   onSubmit
 }: {
   message: string;
+  users: AdminUser[];
   onClose: () => void;
   onSubmit: (payload: CreateUserPayload) => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<CreateUserPayload>({
+    mode: "new",
+    existingUserId: "",
     fullName: "",
     email: "",
     password: "",
@@ -727,6 +771,32 @@ function CreateUserModal({
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function updateMode(mode: "new" | "existing") {
+    const firstExisting = users[0];
+    setForm((current) => ({
+      ...current,
+      mode,
+      existingUserId: mode === "existing" ? firstExisting?.id ?? "" : "",
+      fullName: mode === "existing" ? firstExisting?.name ?? "" : "",
+      email: mode === "existing" ? firstExisting?.email ?? "" : "",
+      company: mode === "existing" ? firstExisting?.company ?? "" : "",
+      city: mode === "existing" ? firstExisting?.city ?? "" : "",
+      password: mode === "existing" ? "" : current.password
+    }));
+  }
+
+  function updateExistingUser(userId: string) {
+    const selected = users.find((user) => user.id === userId);
+    setForm((current) => ({
+      ...current,
+      existingUserId: userId,
+      fullName: selected?.name ?? "",
+      email: selected?.email ?? "",
+      company: selected?.company ?? "",
+      city: selected?.city ?? ""
+    }));
+  }
+
   function updateProgram(program: ProgramSlug) {
     setForm((current) => ({
       ...current,
@@ -763,21 +833,51 @@ function CreateUserModal({
         </div>
 
         <form className="grid gap-5" onSubmit={submit}>
+          <div className="grid gap-3 rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => updateMode("new")}
+              className={`rounded-2xl px-4 py-3 text-sm font-bold ${form.mode === "new" ? "bg-[#123c69] text-white" : "bg-white text-[#344054]"}`}
+            >
+              Nuovo utente
+            </button>
+            <button
+              type="button"
+              onClick={() => updateMode("existing")}
+              className={`rounded-2xl px-4 py-3 text-sm font-bold ${form.mode === "existing" ? "bg-[#123c69] text-white" : "bg-white text-[#344054]"}`}
+            >
+              Utente esistente
+            </button>
+          </div>
+
+          {form.mode === "existing" && (
+            <Field label="Scegli utente esistente">
+              <select value={form.existingUserId} onChange={(event) => updateExistingUser(event.target.value)} className="input" required>
+                <option value="">Seleziona utente</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>{user.name} - {user.email}</option>
+                ))}
+              </select>
+            </Field>
+          )}
+
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Nome completo">
-              <input required value={form.fullName} onChange={(event) => update("fullName", event.target.value)} className="input" />
+              <input required disabled={form.mode === "existing"} value={form.fullName} onChange={(event) => update("fullName", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
             </Field>
             <Field label="Email">
-              <input required type="email" value={form.email} onChange={(event) => update("email", event.target.value)} className="input" />
+              <input required disabled={form.mode === "existing"} type="email" value={form.email} onChange={(event) => update("email", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
             </Field>
-            <Field label="Password iniziale">
-              <input required type="password" minLength={8} value={form.password} onChange={(event) => update("password", event.target.value)} className="input" />
-            </Field>
+            {form.mode === "new" && (
+              <Field label="Password iniziale">
+                <input required type="password" minLength={8} value={form.password} onChange={(event) => update("password", event.target.value)} className="input" />
+              </Field>
+            )}
             <Field label="Azienda">
-              <input value={form.company} onChange={(event) => update("company", event.target.value)} className="input" />
+              <input disabled={form.mode === "existing"} value={form.company} onChange={(event) => update("company", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
             </Field>
             <Field label="Città">
-              <input value={form.city} onChange={(event) => update("city", event.target.value)} className="input" />
+              <input disabled={form.mode === "existing"} value={form.city} onChange={(event) => update("city", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
             </Field>
             <Field label="Programma">
               <select value={form.program} onChange={(event) => updateProgram(event.target.value as ProgramSlug)} className="input">
