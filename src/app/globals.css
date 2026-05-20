@@ -41,3 +41,19 @@ textarea {
 .soft-shadow {
   box-shadow: 0 18px 55px rgba(16, 24, 40, 0.08);
 }
+
+.input {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  padding: 12px 14px;
+  color: #101828;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.input:focus {
+  border-color: #175cd3;
+  box-shadow: 0 0 0 4px #dbeafe;
+}

@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, FormEvent, ReactNode } from "react";
 import {
   AlertCircle,
   BadgeCheck,
@@ -15,6 +16,7 @@ import {
   RotateCcw,
   Search,
   ShieldCheck,
+  X,
   UserPlus
 } from "lucide-react";
 import {
@@ -32,6 +34,7 @@ import {
   remainingProjects,
   sidebarItems,
   type AdminUser,
+  type LicenseType,
   type ProgramSlug
 } from "@/lib/master-data";
 
@@ -54,18 +57,40 @@ const statusClasses: Record<string, string> = {
 
 export function AdminSuite() {
   const [activeSection, setActiveSection] = useState("dashboard");
+  const [users, setUsers] = useState<AdminUser[]>(demoUsers);
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
+  const [createUserMessage, setCreateUserMessage] = useState("");
   const [programFilter, setProgramFilter] = useState<ProgramSlug | "all">("all");
   const [licenseFilter, setLicenseFilter] = useState("all");
   const [query, setQuery] = useState("");
 
   const filteredUsers = useMemo(() => {
-    return demoUsers.filter((user) => {
+    return users.filter((user) => {
       const byQuery = [user.name, user.email, user.company, user.city].join(" ").toLowerCase().includes(query.toLowerCase());
       const byProgram = programFilter === "all" || user.accesses.some((access) => access.program === programFilter);
       const byLicense = licenseFilter === "all" || user.accesses.some((access) => access.licenseStatus === licenseFilter);
       return byQuery && byProgram && byLicense;
     });
-  }, [programFilter, licenseFilter, query]);
+  }, [programFilter, licenseFilter, query, users]);
+
+  async function handleCreateUser(payload: CreateUserPayload) {
+    setCreateUserMessage("");
+    const response = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const result = (await response.json().catch(() => null)) as { user?: AdminUser; error?: string } | null;
+
+    if (!response.ok || !result?.user) {
+      setCreateUserMessage(result?.error || "Utente non creato. Controlla configurazione Supabase e riprova.");
+      return;
+    }
+
+    setUsers((current) => [result.user as AdminUser, ...current]);
+    setIsCreateUserOpen(false);
+    setActiveSection("users");
+  }
 
   return (
     <main className="min-h-screen bg-[#f6f8fb] text-[#101828]">
@@ -107,13 +132,16 @@ export function AdminSuite() {
               <h2 className="text-2xl font-bold tracking-tight">Gestione ecosistema Pilot</h2>
             </div>
             <div className="flex items-center gap-3">
-              <a
+              <Link
                 href="/"
                 className="hidden rounded-full border border-[#c7d7ee] bg-white px-4 py-2 text-sm font-semibold text-[#123c69] md:inline-flex"
               >
                 Pagina prodotti
-              </a>
-              <button className="inline-flex items-center gap-2 rounded-full bg-[#123c69] px-4 py-2 text-sm font-bold text-white">
+              </Link>
+              <button
+                onClick={() => setIsCreateUserOpen(true)}
+                className="inline-flex items-center gap-2 rounded-full bg-[#123c69] px-4 py-2 text-sm font-bold text-white"
+              >
                 <UserPlus className="h-4 w-4" />
                 Crea utente
               </button>
@@ -133,10 +161,11 @@ export function AdminSuite() {
               setProgramFilter={setProgramFilter}
               licenseFilter={licenseFilter}
               setLicenseFilter={setLicenseFilter}
+              onCreateUser={() => setIsCreateUserOpen(true)}
             />
           )}
           {activeSection === "programs" && <ProgramsSection />}
-          {activeSection === "licenses" && <LicensesSection users={demoUsers} />}
+          {activeSection === "licenses" && <LicensesSection users={users} />}
           {activeSection === "plans" && <PlansSection />}
           {activeSection === "payments" && <PaymentsSection />}
           {activeSection === "invoices" && <InvoicesSection />}
@@ -145,6 +174,16 @@ export function AdminSuite() {
           {activeSection === "audit" && <AuditSection />}
         </div>
       </section>
+      {isCreateUserOpen && (
+        <CreateUserModal
+          message={createUserMessage}
+          onClose={() => {
+            setIsCreateUserOpen(false);
+            setCreateUserMessage("");
+          }}
+          onSubmit={handleCreateUser}
+        />
+      )}
     </main>
   );
 }
@@ -241,7 +280,8 @@ function UsersSection({
   programFilter,
   setProgramFilter,
   licenseFilter,
-  setLicenseFilter
+  setLicenseFilter,
+  onCreateUser
 }: {
   users: AdminUser[];
   query: string;
@@ -250,9 +290,10 @@ function UsersSection({
   setProgramFilter: (value: ProgramSlug | "all") => void;
   licenseFilter: string;
   setLicenseFilter: (value: string) => void;
+  onCreateUser: () => void;
 }) {
   return (
-    <Panel title="Gestione utenti" action="Nuovo utente">
+    <Panel title="Gestione utenti" action="Nuovo utente" onAction={onCreateUser}>
       <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_220px_220px]">
         <label className="relative">
           <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98a2b3]" />
@@ -554,13 +595,13 @@ function AuditSection() {
   );
 }
 
-function Panel({ title, action, children }: { title: string; action?: string; children: ReactNode }) {
+function Panel({ title, action, onAction, children }: { title: string; action?: string; onAction?: () => void; children: ReactNode }) {
   return (
     <section className="rounded-[28px] border border-[#d9e2ef] bg-white p-5 soft-shadow md:p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
         {action && (
-          <button className="inline-flex items-center gap-2 rounded-full bg-[#123c69] px-4 py-2 text-sm font-bold text-white">
+          <button onClick={onAction} className="inline-flex items-center gap-2 rounded-full bg-[#123c69] px-4 py-2 text-sm font-bold text-white">
             <Plus className="h-4 w-4" />
             {action}
           </button>
@@ -600,5 +641,165 @@ function IconButton({ label, icon: Icon }: { label: string; icon: ComponentType<
     <button title={label} className="grid h-9 w-9 place-items-center rounded-xl border border-[#d9e2ef] bg-white text-[#516079] hover:border-[#175cd3] hover:text-[#175cd3]">
       <Icon className="h-4 w-4" />
     </button>
+  );
+}
+
+type CreateUserPayload = {
+  fullName: string;
+  email: string;
+  password: string;
+  company: string;
+  city: string;
+  program: ProgramSlug;
+  role: "admin" | "consulente" | "ristoratore" | "utente";
+  licenseType: LicenseType;
+  startDate: string;
+  endDate: string;
+  projectsPurchased: number | null;
+  notes: string;
+};
+
+function CreateUserModal({
+  message,
+  onClose,
+  onSubmit
+}: {
+  message: string;
+  onClose: () => void;
+  onSubmit: (payload: CreateUserPayload) => Promise<void>;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState<CreateUserPayload>({
+    fullName: "",
+    email: "",
+    password: "",
+    company: "",
+    city: "",
+    program: "launch-pilot",
+    role: "ristoratore",
+    licenseType: "monthly_subscription",
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: "",
+    projectsPurchased: null,
+    notes: ""
+  });
+
+  const isProjectPack = form.licenseType.startsWith("project_pack");
+
+  function update<K extends keyof CreateUserPayload>(key: K, value: CreateUserPayload[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    await onSubmit({
+      ...form,
+      projectsPurchased: isProjectPack ? form.projectsPurchased : null
+    });
+    setLoading(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#07111f]/45 px-4 py-8 backdrop-blur-sm">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-[#d9e2ef] bg-white p-6 shadow-2xl">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.14em] text-[#175cd3]">Master Admin Suite</p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight">Crea nuovo utente</h2>
+            <p className="mt-2 text-sm leading-6 text-[#667085]">
+              Assegna programma, ruolo e licenza. Le regole di accesso vengono salvate nel database centrale.
+            </p>
+          </div>
+          <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full bg-[#f2f4f7] text-[#516079]">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form className="grid gap-5" onSubmit={submit}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Nome completo">
+              <input required value={form.fullName} onChange={(event) => update("fullName", event.target.value)} className="input" />
+            </Field>
+            <Field label="Email">
+              <input required type="email" value={form.email} onChange={(event) => update("email", event.target.value)} className="input" />
+            </Field>
+            <Field label="Password iniziale">
+              <input required type="password" minLength={8} value={form.password} onChange={(event) => update("password", event.target.value)} className="input" />
+            </Field>
+            <Field label="Azienda">
+              <input value={form.company} onChange={(event) => update("company", event.target.value)} className="input" />
+            </Field>
+            <Field label="Città">
+              <input value={form.city} onChange={(event) => update("city", event.target.value)} className="input" />
+            </Field>
+            <Field label="Programma">
+              <select value={form.program} onChange={(event) => update("program", event.target.value as ProgramSlug)} className="input">
+                {programs.map((program) => (
+                  <option key={program.slug} value={program.slug}>{program.name}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Ruolo">
+              <select value={form.role} onChange={(event) => update("role", event.target.value as CreateUserPayload["role"])} className="input">
+                <option value="ristoratore">Ristoratore</option>
+                <option value="consulente">Consulente</option>
+                <option value="utente">Utente</option>
+                <option value="admin">Admin</option>
+              </select>
+            </Field>
+            <Field label="Tipo licenza">
+              <select value={form.licenseType} onChange={(event) => update("licenseType", event.target.value as LicenseType)} className="input">
+                <option value="monthly_subscription">Abbonamento mensile</option>
+                <option value="annual_subscription">Abbonamento annuale</option>
+                <option value="project_pack_1">Pacchetto 1 progetto</option>
+                <option value="project_pack_3">Pacchetto 3 progetti</option>
+                <option value="project_pack_5">Pacchetto 5 progetti</option>
+                <option value="free">Licenza gratuita</option>
+                <option value="suspended">Licenza sospesa</option>
+              </select>
+            </Field>
+            <Field label="Data inizio">
+              <input required type="date" value={form.startDate} onChange={(event) => update("startDate", event.target.value)} className="input" />
+            </Field>
+            <Field label="Data fine">
+              <input type="date" value={form.endDate} onChange={(event) => update("endDate", event.target.value)} className="input" />
+            </Field>
+            {isProjectPack && (
+              <Field label="Progetti acquistati">
+                <input
+                  type="number"
+                  min={1}
+                  value={form.projectsPurchased ?? 1}
+                  onChange={(event) => update("projectsPurchased", Number(event.target.value))}
+                  className="input"
+                />
+              </Field>
+            )}
+          </div>
+          <Field label="Note amministrative">
+            <textarea value={form.notes} onChange={(event) => update("notes", event.target.value)} className="input min-h-24 resize-y" />
+          </Field>
+          {message && <p className="rounded-2xl bg-[#fff7ed] px-4 py-3 text-sm font-semibold text-[#b54708]">{message}</p>}
+          <div className="flex flex-wrap justify-end gap-3 border-t border-[#edf2f7] pt-5">
+            <button type="button" onClick={onClose} className="rounded-2xl border border-[#d0d5dd] px-5 py-3 font-bold text-[#344054]">
+              Annulla
+            </button>
+            <button disabled={loading} className="rounded-2xl bg-[#123c69] px-5 py-3 font-bold text-white disabled:opacity-60">
+              {loading ? "Creazione..." : "Crea utente"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="grid gap-2 text-sm font-bold text-[#344054]">
+      {label}
+      {children}
+    </label>
   );
 }
