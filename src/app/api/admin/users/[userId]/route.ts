@@ -38,16 +38,16 @@ export async function DELETE(_request: Request, context: { params: Promise<{ use
 
   const { data: currentProfile } = await admin
     .from("profiles")
-    .select("id,email,is_admin,status")
+    .select("id,email,is_admin,is_super_admin,status")
     .or(`id.eq.${currentUser.id},email.eq.${currentUser.email ?? ""}`)
     .maybeSingle();
 
-  if (!currentProfile?.is_admin || currentProfile.status !== "active") {
+  if ((!currentProfile?.is_admin && !currentProfile?.is_super_admin) || currentProfile.status !== "active") {
     return NextResponse.json({ error: "Accesso non autorizzato." }, { status: 403 });
   }
 
-  const { data: targetProfile } = await admin.from("profiles").select("email,is_admin").eq("id", userId).maybeSingle();
-  if (targetProfile?.is_admin) {
+  const { data: targetProfile } = await admin.from("profiles").select("email,is_admin,is_super_admin").eq("id", userId).maybeSingle();
+  if (targetProfile?.is_admin || targetProfile?.is_super_admin) {
     return NextResponse.json({ error: "Non puoi eliminare un utente master/admin." }, { status: 400 });
   }
 

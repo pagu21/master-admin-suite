@@ -50,10 +50,14 @@ create table if not exists public.profiles (
   city text,
   status public.profile_status not null default 'active',
   is_admin boolean not null default false,
+  is_super_admin boolean not null default false,
   last_login_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles
+  add column if not exists is_super_admin boolean not null default false;
 
 create table if not exists public.programs (
   id uuid primary key default gen_random_uuid(),
@@ -242,7 +246,7 @@ as $$
     select 1
     from public.profiles p
     where p.id = auth.uid()
-      and p.is_admin = true
+      and (p.is_admin = true or p.is_super_admin = true)
       and p.status = 'active'
   );
 $$;

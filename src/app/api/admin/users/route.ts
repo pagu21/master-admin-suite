@@ -82,11 +82,11 @@ async function requireAdmin() {
   const admin = createAdminClient();
   const { data: currentProfile, error: currentProfileError } = await admin
     .from("profiles")
-    .select("id,email,is_admin,status")
+    .select("id,email,is_admin,is_super_admin,status")
     .or(`id.eq.${currentUser.id},email.eq.${currentUser.email ?? ""}`)
     .maybeSingle();
 
-  if (currentProfileError || !currentProfile?.is_admin || currentProfile.status !== "active") {
+  if (currentProfileError || (!currentProfile?.is_admin && !currentProfile?.is_super_admin) || currentProfile.status !== "active") {
     return {
       error: NextResponse.json(
         {
