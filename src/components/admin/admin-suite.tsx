@@ -104,7 +104,13 @@ export function AdminSuite() {
       return;
     }
 
-    setUsers((current) => [result.user as AdminUser, ...current]);
+    const updatedResponse = await fetch("/api/admin/users", { cache: "no-store" });
+    const updatedResult = (await updatedResponse.json().catch(() => null)) as { users?: AdminUser[] } | null;
+    if (updatedResponse.ok && updatedResult?.users) {
+      setUsers(updatedResult.users);
+    } else {
+      setUsers((current) => [result.user as AdminUser, ...current.filter((user) => user.id !== result.user?.id)]);
+    }
     setIsCreateUserOpen(false);
     setActiveSection("users");
   }
@@ -707,6 +713,12 @@ type CreateUserPayload = {
   password: string;
   company: string;
   city: string;
+  assignments: ProgramAssignmentForm[];
+  notes: string;
+};
+
+type ProgramAssignmentForm = {
+  enabled: boolean;
   program: ProgramSlug;
   role: "admin" | "consulente" | "ristoratore" | "utente";
   licenseType: LicenseType;
@@ -714,8 +726,42 @@ type CreateUserPayload = {
   endDate: string;
   projectsPurchased: number | null;
   permissionProfile: "completo" | "operativo" | "limitato" | "personalizzato";
-  notes: string;
 };
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const defaultAssignments = (): ProgramAssignmentForm[] => [
+  {
+    enabled: false,
+    program: "margin-pilot",
+    role: "utente",
+    licenseType: "annual_subscription",
+    startDate: todayIso(),
+    endDate: "",
+    projectsPurchased: null,
+    permissionProfile: "completo"
+  },
+  {
+    enabled: true,
+    program: "launch-pilot",
+    role: "ristoratore",
+    licenseType: "project_pack_1",
+    startDate: todayIso(),
+    endDate: "",
+    projectsPurchased: 1,
+    permissionProfile: "completo"
+  },
+  {
+    enabled: false,
+    program: "standard-pilot",
+    role: "utente",
+    licenseType: "free",
+    startDate: todayIso(),
+    endDate: "",
+    projectsPurchased: null,
+    permissionProfile: "completo"
+  }
+];
 
 function CreateUserModal({
   message,
@@ -737,25 +783,18 @@ function CreateUserModal({
     password: "",
     company: "",
     city: "",
-    program: "launch-pilot",
-    role: "ristoratore",
-    licenseType: "monthly_subscription",
-    startDate: new Date().toISOString().slice(0, 10),
-    endDate: "",
-    projectsPurchased: null,
-    permissionProfile: "completo",
+    assignments: defaultAssignments(),
     notes: ""
   });
 
-  const isProjectPack = form.licenseType.startsWith("project_pack");
-  const roleOptions =
-    form.program === "margin-pilot"
+  const roleOptionsFor = (program: ProgramSlug) =>
+    program === "margin-pilot"
       ? [
           { value: "utente", label: "Cliente" },
           { value: "consulente", label: "Operatore" },
           { value: "admin", label: "Master" }
         ]
-      : form.program === "launch-pilot"
+      : program === "launch-pilot"
         ? [
             { value: "ristoratore", label: "Ristoratore" },
             { value: "consulente", label: "Consulente" },
@@ -771,6 +810,26 @@ function CreateUserModal({
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function updateAssignment<K extends keyof ProgramAssignmentForm>(program: ProgramSlug, key: K, value: ProgramAssignmentForm[K]) {
+    setForm((current) => ({
+      ...current,
+      assignments: current.assignments.map((assignment) => {
+        if (assignment.program !== program) return assignment;
+        const next = { ...assignment, [key]: value };
+        if (key === "licenseType") {
+          next.projectsPurchased = String(value).startsWith("project_pack")
+            ? value === "project_pack_5"
+              ? 5
+              : value === "project_pack_3"
+                ? 3
+                : 1
+            : null;
+        }
+        return next;
+      })
+    }));
+  }
+
   function updateMode(mode: "new" | "existing") {
     const firstExisting = users[0];
     setForm((current) => ({
@@ -781,7 +840,8 @@ function CreateUserModal({
       email: mode === "existing" ? firstExisting?.email ?? "" : "",
       company: mode === "existing" ? firstExisting?.company ?? "" : "",
       city: mode === "existing" ? firstExisting?.city ?? "" : "",
-      password: mode === "existing" ? "" : current.password
+      password: mode === "existing" ? "" : current.password,
+      assignments: defaultAssignments()
     }));
   }
 
@@ -797,21 +857,17 @@ function CreateUserModal({
     }));
   }
 
-  function updateProgram(program: ProgramSlug) {
-    setForm((current) => ({
-      ...current,
-      program,
-      role: program === "launch-pilot" ? "ristoratore" : "utente",
-      permissionProfile: "completo"
-    }));
-  }
-
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     await onSubmit({
       ...form,
-      projectsPurchased: isProjectPack ? form.projectsPurchased : null
+      assignments: form.assignments
+        .filter((assignment) => assignment.enabled)
+        .map((assignment) => ({
+          ...assignment,
+          projectsPurchased: assignment.licenseType.startsWith("project_pack") ? assignment.projectsPurchased : null
+        }))
     });
     setLoading(false);
   }
@@ -879,62 +935,85 @@ function CreateUserModal({
             <Field label="Città">
               <input disabled={form.mode === "existing"} value={form.city} onChange={(event) => update("city", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
             </Field>
-            <Field label="Programma">
-              <select value={form.program} onChange={(event) => updateProgram(event.target.value as ProgramSlug)} className="input">
-                {programs.map((program) => (
-                  <option key={program.slug} value={program.slug}>{program.name}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Ruolo">
-              <select value={form.role} onChange={(event) => update("role", event.target.value as CreateUserPayload["role"])} className="input">
-                {roleOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </Field>
-            {form.program === "margin-pilot" && (
-              <Field label="Profilo Margin Pilot">
-                <select
-                  value={form.permissionProfile}
-                  onChange={(event) => update("permissionProfile", event.target.value as CreateUserPayload["permissionProfile"])}
-                  className="input"
-                >
-                  <option value="completo">Completo - tutte le funzioni operative</option>
-                  <option value="operativo">Operativo - dati principali, prodotti e report</option>
-                  <option value="limitato">Limitato - sola lettura essenziale</option>
-                  <option value="personalizzato">Personalizzato - da configurare in dettaglio</option>
-                </select>
-              </Field>
-            )}
-            <Field label="Tipo licenza">
-              <select value={form.licenseType} onChange={(event) => update("licenseType", event.target.value as LicenseType)} className="input">
-                <option value="monthly_subscription">Abbonamento mensile</option>
-                <option value="annual_subscription">Abbonamento annuale</option>
-                <option value="project_pack_1">Pacchetto 1 progetto</option>
-                <option value="project_pack_3">Pacchetto 3 progetti</option>
-                <option value="project_pack_5">Pacchetto 5 progetti</option>
-                <option value="free">Licenza gratuita</option>
-                <option value="suspended">Licenza sospesa</option>
-              </select>
-            </Field>
-            <Field label="Data inizio">
-              <input required type="date" value={form.startDate} onChange={(event) => update("startDate", event.target.value)} className="input" />
-            </Field>
-            <Field label="Data fine">
-              <input type="date" value={form.endDate} onChange={(event) => update("endDate", event.target.value)} className="input" />
-            </Field>
-            {isProjectPack && (
-              <Field label="Progetti acquistati">
-                <input
-                  type="number"
-                  min={1}
-                  value={form.projectsPurchased ?? 1}
-                  onChange={(event) => update("projectsPurchased", Number(event.target.value))}
-                  className="input"
-                />
-              </Field>
-            )}
+          </div>
+          <div className="grid gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-[#101828]">Programmi da attivare</h3>
+              <p className="mt-1 text-sm text-[#667085]">Lo stesso utente può entrare in più programmi con ruoli e licenze diverse.</p>
+            </div>
+            {form.assignments.map((assignment) => {
+              const program = programs.find((item) => item.slug === assignment.program)!;
+              const isProjectPack = assignment.licenseType.startsWith("project_pack");
+              return (
+                <div key={assignment.program} className={`rounded-3xl border p-4 ${assignment.enabled ? "border-[#175cd3] bg-[#eef4ff]" : "border-[#d9e2ef] bg-white"}`}>
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={assignment.enabled}
+                        onChange={(event) => updateAssignment(assignment.program, "enabled", event.target.checked)}
+                        className="h-5 w-5"
+                      />
+                      <span className="text-lg font-bold">{program.name}</span>
+                    </label>
+                    <span className="text-sm font-semibold text-[#667085]">{assignment.enabled ? "Attivo per questo utente" : "Non assegnato"}</span>
+                  </div>
+                  {assignment.enabled && (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Field label="Ruolo">
+                        <select value={assignment.role} onChange={(event) => updateAssignment(assignment.program, "role", event.target.value as ProgramAssignmentForm["role"])} className="input">
+                          {roleOptionsFor(assignment.program).map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </Field>
+                      {assignment.program === "margin-pilot" && (
+                        <Field label="Profilo Margin Pilot">
+                          <select
+                            value={assignment.permissionProfile}
+                            onChange={(event) => updateAssignment(assignment.program, "permissionProfile", event.target.value as ProgramAssignmentForm["permissionProfile"])}
+                            className="input"
+                          >
+                            <option value="completo">Completo - tutte le funzioni operative</option>
+                            <option value="operativo">Operativo - dati principali, prodotti e report</option>
+                            <option value="limitato">Limitato - sola lettura essenziale</option>
+                            <option value="personalizzato">Personalizzato - da configurare in dettaglio</option>
+                          </select>
+                        </Field>
+                      )}
+                      <Field label="Tipo licenza">
+                        <select value={assignment.licenseType} onChange={(event) => updateAssignment(assignment.program, "licenseType", event.target.value as LicenseType)} className="input">
+                          <option value="monthly_subscription">Abbonamento mensile</option>
+                          <option value="annual_subscription">Abbonamento annuale</option>
+                          <option value="project_pack_1">Pacchetto 1 progetto</option>
+                          <option value="project_pack_3">Pacchetto 3 progetti</option>
+                          <option value="project_pack_5">Pacchetto 5 progetti</option>
+                          <option value="free">Licenza gratuita</option>
+                          <option value="suspended">Licenza sospesa</option>
+                        </select>
+                      </Field>
+                      <Field label="Data inizio">
+                        <input required type="date" value={assignment.startDate} onChange={(event) => updateAssignment(assignment.program, "startDate", event.target.value)} className="input" />
+                      </Field>
+                      <Field label="Data fine">
+                        <input type="date" value={assignment.endDate} onChange={(event) => updateAssignment(assignment.program, "endDate", event.target.value)} className="input" />
+                      </Field>
+                      {isProjectPack && (
+                        <Field label="Progetti acquistati">
+                          <input
+                            type="number"
+                            min={1}
+                            value={assignment.projectsPurchased ?? 1}
+                            onChange={(event) => updateAssignment(assignment.program, "projectsPurchased", Number(event.target.value))}
+                            className="input"
+                          />
+                        </Field>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
           <Field label="Note amministrative">
             <textarea value={form.notes} onChange={(event) => update("notes", event.target.value)} className="input min-h-24 resize-y" />

@@ -21,6 +21,24 @@ type CreateUserPayload = {
   notes?: string;
 };
 
+type ProgramAssignmentPayload = {
+  enabled: boolean;
+  program: ProgramSlug;
+  role: "admin" | "consulente" | "ristoratore" | "utente";
+  licenseType: LicenseType;
+  startDate: string;
+  endDate?: string;
+  projectsPurchased?: number | null;
+  permissionProfile?: "completo" | "operativo" | "limitato" | "personalizzato";
+  notes?: string;
+};
+
+type MultiProgramPayload = Omit<CreateUserPayload, "program" | "role" | "licenseType" | "startDate" | "endDate" | "projectsPurchased" | "permissionProfile"> & {
+  assignments?: ProgramAssignmentPayload[];
+};
+
+type RelationOne<T> = T | T[] | null;
+
 type ProfileRow = {
   id: string;
   email: string;
@@ -31,8 +49,8 @@ type ProfileRow = {
   last_login_at: string | null;
   user_program_access?: Array<{
     active: boolean;
-    programs: { slug: ProgramSlug } | null;
-    roles: { code: "admin" | "consulente" | "ristoratore" | "utente" } | null;
+    programs: RelationOne<{ slug: ProgramSlug }>;
+    roles: RelationOne<{ code: "admin" | "consulente" | "ristoratore" | "utente" }>;
     licenses?: Array<{
       type: LicenseType;
       status: "active" | "expired" | "suspended" | "pending";
@@ -43,6 +61,11 @@ type ProfileRow = {
     }>;
   }>;
 };
+
+function firstRelation<T>(value: RelationOne<T>): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value;
+}
 
 function hasServerConfig() {
   return Boolean(
@@ -138,7 +161,7 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const users: AdminUser[] = ((data ?? []) as ProfileRow[]).map((row) => ({
+  const users: AdminUser[] = ((data ?? []) as unknown as ProfileRow[]).map((row) => ({
     id: row.id,
     name: row.full_name || row.email,
     email: row.email,
@@ -147,12 +170,14 @@ export async function GET() {
     status: row.status === "suspended" ? "suspended" : "active",
     lastAccess: row.last_login_at ? new Date(row.last_login_at).toLocaleString("it-IT") : "Mai",
     accesses: (row.user_program_access ?? [])
-      .filter((access) => access.programs?.slug)
       .flatMap((access) => {
+        const program = firstRelation(access.programs);
+        const role = firstRelation(access.roles);
+        if (!program?.slug) return [];
         const license = access.licenses?.[0];
         return [{
-          program: access.programs!.slug,
-          role: access.roles?.code || "utente",
+          program: program.slug,
+          role: role?.code || "utente",
           licenseType: license?.type || "free",
           licenseStatus: license?.status || (access.active ? "active" : "suspended"),
           projectsPurchased: license?.projects_purchased ?? undefined,
@@ -174,8 +199,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const payload = (await request.json().catch(() => null)) as CreateUserPayload | null;
-  if (!payload?.email || !payload.fullName || !payload.program || !payload.role || !payload.licenseType) {
+  const payload = (await request.json().catch(() => null)) as MultiProgramPayload | null;
+  const assignments = (payload?.assignments?.length ? payload.assignments : payload && "program" in payload ? [{
+    enabled: true,
+    program: (payload as CreateUserPayload).program,
+    role: (payload as CreateUserPayload).role,
+    licenseType: (payload as CreateUserPayload).licenseType,
+    startDate: (payload as CreateUserPayload).startDate,
+    endDate: (payload as CreateUserPayload).endDate,
+    projectsPurchased: (payload as CreateUserPayload).projectsPurchased,
+    permissionProfile: (payload as CreateUserPayload).permissionProfile,
+    notes: payload.notes
+  }] : []).filter((assignment) => assignment.enabled);
+
+  if (!payload?.email || !payload.fullName || assignments.length === 0) {
     return NextResponse.json({ error: "Dati utente incompleti." }, { status: 400 });
   }
 
@@ -210,29 +247,8 @@ export async function POST(request: Request) {
     userId = authResult.user.id;
   }
 
-  const projectsPurchased = licenseProjects(payload.licenseType, payload.projectsPurchased);
-  const licenseNotes = [
-    payload.notes?.trim(),
-    payload.permissionProfile ? `Profilo permessi: ${payload.permissionProfile}` : ""
-  ].filter(Boolean).join("\n");
-
-  const { data: program, error: programError } = await admin
-    .from("programs")
-    .select("id,slug")
-    .eq("slug", payload.program)
-    .maybeSingle();
-
-  if (programError || !program) {
-    await admin.auth.admin.deleteUser(userId);
-    return NextResponse.json({ error: "Programma non trovato nel database centrale." }, { status: 400 });
-  }
-
-  const { data: role } = await admin
-    .from("roles")
-    .select("id")
-    .eq("program_id", program.id)
-    .eq("code", payload.role)
-    .maybeSingle();
+  const hasAdminRole = assignments.some((assignment) => assignment.role === "admin");
+  const hasSuspendedOnly = assignments.every((assignment) => assignment.licenseType === "suspended");
 
   const profilePayload: Record<string, string | boolean | null> = {
     id: userId,
@@ -240,11 +256,11 @@ export async function POST(request: Request) {
     full_name: payload.fullName,
     company: payload.company || null,
     city: payload.city || null,
-    status: payload.licenseType === "suspended" ? "suspended" : "active"
+    status: hasSuspendedOnly ? "suspended" : "active"
   };
 
-  if ((payload.mode ?? "new") === "new" || payload.role === "admin") {
-    profilePayload.is_admin = payload.role === "admin";
+  if ((payload.mode ?? "new") === "new" || hasAdminRole) {
+    profilePayload.is_admin = hasAdminRole;
   }
 
   const { error: profileError } = await admin.from("profiles").upsert(profilePayload);
@@ -256,40 +272,81 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: profileError.message }, { status: 400 });
   }
 
-  const { data: access, error: accessError } = await admin
-    .from("user_program_access")
-    .upsert({
-      user_id: userId,
-      program_id: program.id,
-      role_id: role?.id || null,
-      active: payload.licenseType !== "suspended"
-    }, { onConflict: "user_id,program_id" })
-    .select("id")
-    .single();
+  const createdAccesses: AdminUser["accesses"] = [];
 
-  if (accessError || !access) {
-    if ((payload.mode ?? "new") === "new") {
-      await admin.auth.admin.deleteUser(userId);
+  for (const assignment of assignments) {
+    const projectsPurchased = licenseProjects(assignment.licenseType, assignment.projectsPurchased);
+    const licenseNotes = [
+      assignment.notes?.trim(),
+      assignment.permissionProfile ? `Profilo permessi: ${assignment.permissionProfile}` : ""
+    ].filter(Boolean).join("\n");
+
+    const { data: program, error: programError } = await admin
+      .from("programs")
+      .select("id,slug")
+      .eq("slug", assignment.program)
+      .maybeSingle();
+
+    if (programError || !program) {
+      if ((payload.mode ?? "new") === "new") {
+        await admin.auth.admin.deleteUser(userId);
+      }
+      return NextResponse.json({ error: `Programma non trovato: ${assignment.program}` }, { status: 400 });
     }
-    return NextResponse.json({ error: accessError?.message || "Accesso programma non creato." }, { status: 400 });
-  }
 
-  const { error: licenseError } = await admin.from("licenses").insert({
-    user_program_access_id: access.id,
-    type: payload.licenseType,
-    status: payload.licenseType === "suspended" ? "suspended" : "active",
-    start_date: payload.startDate,
-    end_date: payload.endDate || null,
-    projects_purchased: projectsPurchased,
-    projects_used: 0,
-    notes: licenseNotes || null
-  });
+    const { data: role } = await admin
+      .from("roles")
+      .select("id")
+      .eq("program_id", program.id)
+      .eq("code", assignment.role)
+      .maybeSingle();
 
-  if (licenseError) {
-    if ((payload.mode ?? "new") === "new") {
-      await admin.auth.admin.deleteUser(userId);
+    const { data: access, error: accessError } = await admin
+      .from("user_program_access")
+      .upsert({
+        user_id: userId,
+        program_id: program.id,
+        role_id: role?.id || null,
+        active: assignment.licenseType !== "suspended"
+      }, { onConflict: "user_id,program_id" })
+      .select("id")
+      .single();
+
+    if (accessError || !access) {
+      if ((payload.mode ?? "new") === "new") {
+        await admin.auth.admin.deleteUser(userId);
+      }
+      return NextResponse.json({ error: accessError?.message || "Accesso programma non creato." }, { status: 400 });
     }
-    return NextResponse.json({ error: licenseError.message }, { status: 400 });
+
+    const { error: licenseError } = await admin.from("licenses").insert({
+      user_program_access_id: access.id,
+      type: assignment.licenseType,
+      status: assignment.licenseType === "suspended" ? "suspended" : "active",
+      start_date: assignment.startDate,
+      end_date: assignment.endDate || null,
+      projects_purchased: projectsPurchased,
+      projects_used: 0,
+      notes: licenseNotes || null
+    });
+
+    if (licenseError) {
+      if ((payload.mode ?? "new") === "new") {
+        await admin.auth.admin.deleteUser(userId);
+      }
+      return NextResponse.json({ error: licenseError.message }, { status: 400 });
+    }
+
+    createdAccesses.push({
+      program: assignment.program,
+      role: assignment.role,
+      licenseType: assignment.licenseType,
+      licenseStatus: assignment.licenseType === "suspended" ? "suspended" : "active",
+      projectsPurchased: projectsPurchased ?? undefined,
+      projectsUsed: 0,
+      startDate: assignment.startDate,
+      endDate: assignment.endDate || undefined
+    });
   }
 
   await admin.from("audit_logs").insert({
@@ -299,10 +356,7 @@ export async function POST(request: Request) {
     entity_id: userId,
     metadata: {
       email: payload.email,
-      program: payload.program,
-      role: payload.role,
-      licenseType: payload.licenseType,
-      permissionProfile: payload.permissionProfile
+      assignments
     }
   });
 
@@ -312,25 +366,18 @@ export async function POST(request: Request) {
     email: payload.email,
     company: payload.company || "-",
     city: payload.city || "-",
-    status: payload.licenseType === "suspended" ? "suspended" : "active",
+    status: hasSuspendedOnly ? "suspended" : "active",
     lastAccess: "Mai",
-    accesses: [
-      {
-        program: payload.program,
-        role: payload.role,
-        licenseType: payload.licenseType,
-        licenseStatus: payload.licenseType === "suspended" ? "suspended" : "active",
-        projectsPurchased: projectsPurchased ?? undefined,
-        projectsUsed: 0,
-        startDate: payload.startDate,
-        endDate: payload.endDate || undefined
-      }
-    ]
+    accesses: createdAccesses
   };
 
   return NextResponse.json({
     user: createdUser,
-    summary: `${createdUser.name} creato per ${programName(payload.program)} con licenza ${licenseLabel(payload.licenseType)}.`,
-    remainingProjects: remainingProjects(createdUser.accesses[0])
+    summary: `${createdUser.name} aggiornato per ${createdAccesses.map((access) => programName(access.program)).join(", ")}.`,
+    remainingProjects: createdUser.accesses.map((access) => ({
+      program: access.program,
+      license: licenseLabel(access.licenseType),
+      remaining: remainingProjects(access)
+    }))
   });
 }
