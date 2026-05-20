@@ -99,7 +99,7 @@ export const programs: Program[] = [
     slug: "margin-pilot",
     name: "Margin Pilot",
     description: "Controllo marginalità, prezzi e profittabilità per attività food.",
-    loginUrl: process.env.NEXT_PUBLIC_MARGIN_PILOT_LOGIN || "http://127.0.0.1:3002/login",
+    loginUrl: "https://marginpilot-2jjw.vercel.app/login",
     accent: "from-blue-600 to-sky-400",
     active: true
   },
@@ -107,7 +107,7 @@ export const programs: Program[] = [
     slug: "launch-pilot",
     name: "Launch Pilot",
     description: "Prefattibilità economica, business plan e sostenibilità finanziaria.",
-    loginUrl: process.env.NEXT_PUBLIC_LAUNCH_PILOT_LOGIN || "http://127.0.0.1:3003/login",
+    loginUrl: "https://launchpilot-olive.vercel.app/login",
     accent: "from-teal-600 to-emerald-400",
     active: true
   },
@@ -115,7 +115,7 @@ export const programs: Program[] = [
     slug: "standard-pilot",
     name: "Standard Pilot",
     description: "Standard operativi, procedure e controllo qualità per la ristorazione.",
-    loginUrl: process.env.NEXT_PUBLIC_STANDARD_PILOT_LOGIN || "http://127.0.0.1:3005/login",
+    loginUrl: "https://standardpilot.vercel.app/login",
     accent: "from-amber-500 to-orange-400",
     active: false
   }

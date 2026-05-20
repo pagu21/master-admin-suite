@@ -301,6 +301,30 @@ alter table public.contacts enable row level security;
 alter table public.audit_logs enable row level security;
 alter table public.projects enable row level security;
 
+drop policy if exists "profiles admin manage all" on public.profiles;
+drop policy if exists "profiles users read own" on public.profiles;
+drop policy if exists "programs public read active" on public.programs;
+drop policy if exists "programs admin manage" on public.programs;
+drop policy if exists "roles admin manage" on public.roles;
+drop policy if exists "roles users read assigned" on public.roles;
+drop policy if exists "access admin manage" on public.user_program_access;
+drop policy if exists "access users read own" on public.user_program_access;
+drop policy if exists "licenses admin manage" on public.licenses;
+drop policy if exists "licenses users read own" on public.licenses;
+drop policy if exists "plans public read active" on public.plans;
+drop policy if exists "plans admin manage" on public.plans;
+drop policy if exists "payments admin manage" on public.payments;
+drop policy if exists "payments users read own" on public.payments;
+drop policy if exists "invoices admin manage" on public.invoices;
+drop policy if exists "invoices users read own" on public.invoices;
+drop policy if exists "contacts public insert" on public.contacts;
+drop policy if exists "contacts admin manage" on public.contacts;
+drop policy if exists "audit admin read" on public.audit_logs;
+drop policy if exists "audit admin insert" on public.audit_logs;
+drop policy if exists "projects admin manage" on public.projects;
+drop policy if exists "projects users read own" on public.projects;
+drop policy if exists "projects users insert if license allows" on public.projects;
+
 create policy "profiles admin manage all" on public.profiles for all to authenticated using (public.current_user_is_admin()) with check (public.current_user_is_admin());
 create policy "profiles users read own" on public.profiles for select to authenticated using (id = auth.uid());
 
@@ -402,7 +426,7 @@ cross join (
 on conflict (program_id, code) do nothing;
 
 insert into public.plans (program_id, code, name, license_type, price, currency, project_limit, active)
-select p.id, code, name, license_type::public.license_type, price, 'EUR', project_limit, active
+select p.id, s.code, s.plan_name, s.license_type::public.license_type, s.price, 'EUR', s.project_limit, s.active
 from public.programs p
 join (
   values
@@ -413,7 +437,7 @@ join (
     ('launch-pilot', 'launch-pack-5', 'Launch Pilot 5 progetti', 'project_pack_5', 390.00, 5, true),
     ('margin-pilot', 'margin-annual', 'Margin Pilot annuale', 'annual_subscription', 790.00, null, true),
     ('standard-pilot', 'standard-free', 'Standard Pilot demo', 'free', 0.00, 1, false)
-) as s(program_slug, code, name, license_type, price, project_limit, active)
+) as s(program_slug, code, plan_name, license_type, price, project_limit, active)
 on p.slug = s.program_slug
 on conflict (code) do update set
   name = excluded.name,
