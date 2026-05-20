@@ -15,6 +15,7 @@ type CreateUserPayload = {
   startDate: string;
   endDate?: string;
   projectsPurchased?: number | null;
+  permissionProfile?: "completo" | "operativo" | "limitato" | "personalizzato";
   notes?: string;
 };
 
@@ -88,6 +89,10 @@ export async function POST(request: Request) {
 
   const userId = authResult.user.id;
   const projectsPurchased = licenseProjects(payload.licenseType, payload.projectsPurchased);
+  const licenseNotes = [
+    payload.notes?.trim(),
+    payload.permissionProfile ? `Profilo permessi: ${payload.permissionProfile}` : ""
+  ].filter(Boolean).join("\n");
 
   const { data: program, error: programError } = await admin
     .from("programs")
@@ -146,7 +151,7 @@ export async function POST(request: Request) {
     end_date: payload.endDate || null,
     projects_purchased: projectsPurchased,
     projects_used: 0,
-    notes: payload.notes || null
+    notes: licenseNotes || null
   });
 
   if (licenseError) {
@@ -163,7 +168,8 @@ export async function POST(request: Request) {
       email: payload.email,
       program: payload.program,
       role: payload.role,
-      licenseType: payload.licenseType
+      licenseType: payload.licenseType,
+      permissionProfile: payload.permissionProfile
     }
   });
 

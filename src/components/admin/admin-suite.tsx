@@ -11,6 +11,7 @@ import {
   CircleDollarSign,
   KeyRound,
   LockKeyhole,
+  LogOut,
   MoreHorizontal,
   Plus,
   RotateCcw,
@@ -37,6 +38,7 @@ import {
   type LicenseType,
   type ProgramSlug
 } from "@/lib/master-data";
+import { createSupabaseBrowserClient, hasSupabaseBrowserConfig } from "@/lib/supabase/client";
 
 const MoneyIcon = moneyIcon;
 
@@ -92,6 +94,14 @@ export function AdminSuite() {
     setActiveSection("users");
   }
 
+  async function handleLogout() {
+    if (hasSupabaseBrowserConfig()) {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+    }
+    window.location.href = "/login";
+  }
+
   return (
     <main className="min-h-screen bg-[#f6f8fb] text-[#101828]">
       <aside className="fixed inset-y-0 left-0 hidden w-72 border-r border-[#d9e2ef] bg-white px-5 py-6 lg:block">
@@ -144,6 +154,13 @@ export function AdminSuite() {
               >
                 <UserPlus className="h-4 w-4" />
                 Crea utente
+              </button>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center gap-2 rounded-full border border-[#d0d5dd] bg-white px-4 py-2 text-sm font-bold text-[#344054]"
+              >
+                <LogOut className="h-4 w-4" />
+                Esci
               </button>
             </div>
           </div>
@@ -656,6 +673,7 @@ type CreateUserPayload = {
   startDate: string;
   endDate: string;
   projectsPurchased: number | null;
+  permissionProfile: "completo" | "operativo" | "limitato" | "personalizzato";
   notes: string;
 };
 
@@ -681,13 +699,41 @@ function CreateUserModal({
     startDate: new Date().toISOString().slice(0, 10),
     endDate: "",
     projectsPurchased: null,
+    permissionProfile: "completo",
     notes: ""
   });
 
   const isProjectPack = form.licenseType.startsWith("project_pack");
+  const roleOptions =
+    form.program === "margin-pilot"
+      ? [
+          { value: "utente", label: "Cliente" },
+          { value: "consulente", label: "Operatore" },
+          { value: "admin", label: "Master" }
+        ]
+      : form.program === "launch-pilot"
+        ? [
+            { value: "ristoratore", label: "Ristoratore" },
+            { value: "consulente", label: "Consulente" },
+            { value: "admin", label: "Admin" }
+          ]
+        : [
+            { value: "utente", label: "Utente" },
+            { value: "consulente", label: "Operatore" },
+            { value: "admin", label: "Admin" }
+          ];
 
   function update<K extends keyof CreateUserPayload>(key: K, value: CreateUserPayload[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateProgram(program: ProgramSlug) {
+    setForm((current) => ({
+      ...current,
+      program,
+      role: program === "launch-pilot" ? "ristoratore" : "utente",
+      permissionProfile: "completo"
+    }));
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -734,7 +780,7 @@ function CreateUserModal({
               <input value={form.city} onChange={(event) => update("city", event.target.value)} className="input" />
             </Field>
             <Field label="Programma">
-              <select value={form.program} onChange={(event) => update("program", event.target.value as ProgramSlug)} className="input">
+              <select value={form.program} onChange={(event) => updateProgram(event.target.value as ProgramSlug)} className="input">
                 {programs.map((program) => (
                   <option key={program.slug} value={program.slug}>{program.name}</option>
                 ))}
@@ -742,12 +788,25 @@ function CreateUserModal({
             </Field>
             <Field label="Ruolo">
               <select value={form.role} onChange={(event) => update("role", event.target.value as CreateUserPayload["role"])} className="input">
-                <option value="ristoratore">Ristoratore</option>
-                <option value="consulente">Consulente</option>
-                <option value="utente">Utente</option>
-                <option value="admin">Admin</option>
+                {roleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </Field>
+            {form.program === "margin-pilot" && (
+              <Field label="Profilo Margin Pilot">
+                <select
+                  value={form.permissionProfile}
+                  onChange={(event) => update("permissionProfile", event.target.value as CreateUserPayload["permissionProfile"])}
+                  className="input"
+                >
+                  <option value="completo">Completo - tutte le funzioni operative</option>
+                  <option value="operativo">Operativo - dati principali, prodotti e report</option>
+                  <option value="limitato">Limitato - sola lettura essenziale</option>
+                  <option value="personalizzato">Personalizzato - da configurare in dettaglio</option>
+                </select>
+              </Field>
+            )}
             <Field label="Tipo licenza">
               <select value={form.licenseType} onChange={(event) => update("licenseType", event.target.value as LicenseType)} className="input">
                 <option value="monthly_subscription">Abbonamento mensile</option>
