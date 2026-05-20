@@ -2,6 +2,12 @@ import Link from "next/link";
 import { ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 import { programs } from "@/lib/master-data";
 
+const productLoginUrls = {
+  "margin-pilot": "https://marginpilot-2jjw.vercel.app/login",
+  "launch-pilot": "https://launchpilot-olive.vercel.app/login",
+  "standard-pilot": "https://standardpilot.vercel.app/login"
+};
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#f6f8fb]">
@@ -43,7 +49,7 @@ export default function Home() {
             {programs.map((program) => (
               <a
                 key={program.slug}
-                href={program.loginUrl}
+                href={productLoginUrls[program.slug]}
                 className="group rounded-[28px] border border-[#d9e2ef] bg-white p-6 soft-shadow transition hover:-translate-y-1 hover:border-[#175cd3]"
               >
                 <div className="flex items-start justify-between gap-5">
@@ -62,7 +68,7 @@ export default function Home() {
                   <span className={program.active ? "font-semibold text-[#0f766e]" : "font-semibold text-[#b54708]"}>
                     {program.active ? "Programma attivo" : "In predisposizione"}
                   </span>
-                  <span className="text-[#667085]">Vai al login</span>
+                  <span className="text-[#667085]">{new URL(productLoginUrls[program.slug]).hostname}</span>
                 </div>
               </a>
             ))}
