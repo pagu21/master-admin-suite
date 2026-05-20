@@ -99,7 +99,7 @@ export const programs: Program[] = [
     slug: "margin-pilot",
     name: "Margin Pilot",
     description: "Controllo marginalità, prezzi e profittabilità per attività food.",
-    loginUrl: "https://marginpilot-2jjw.vercel.app/login",
+    loginUrl: "https://marginpilot-2jjw.vercel.app/cruscotto",
     accent: "from-blue-600 to-sky-400",
     active: true
   },

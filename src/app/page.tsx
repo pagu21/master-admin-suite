@@ -3,7 +3,7 @@ import { ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 import { programs } from "@/lib/master-data";
 
 const productLoginUrls = {
-  "margin-pilot": "https://marginpilot-2jjw.vercel.app/login",
+  "margin-pilot": "https://marginpilot-2jjw.vercel.app/cruscotto",
   "launch-pilot": "https://launchpilot-olive.vercel.app/login",
   "standard-pilot": "https://standardpilot.vercel.app/login"
 };
