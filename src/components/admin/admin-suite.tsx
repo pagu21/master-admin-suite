@@ -1292,6 +1292,18 @@ function assignmentsFromUser(user?: AdminUser | null): ProgramAssignmentForm[] {
   });
 }
 
+function masterSecondaryAssignments(): ProgramAssignmentForm[] {
+  return defaultAssignments().map((assignment) => ({
+    ...assignment,
+    enabled: true,
+    role: "admin",
+    licenseType: assignment.program === "standard-pilot" ? "free" : "annual_subscription",
+    projectsPurchased: null,
+    permissionProfile: "completo",
+    marginAccessConfig: presetMarginAccessConfig("completo")
+  }));
+}
+
 function CreateUserModal({
   message,
   users,
@@ -1408,6 +1420,17 @@ function CreateUserModal({
     }));
   }
 
+  function applySecondaryMasterPreset() {
+    setForm((current) => ({
+      ...current,
+      assignments: masterSecondaryAssignments(),
+      notes: [
+        current.notes.trim(),
+        "Profilo master secondario: può creare e cancellare utenti non master, gestire licenze e accedere a tutti i programmi Pilot."
+      ].filter(Boolean).join("\n")
+    }));
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -1493,8 +1516,22 @@ function CreateUserModal({
           </div>
           <div className="grid gap-4">
             <div>
-              <h3 className="text-lg font-bold text-[#101828]">Programmi da attivare</h3>
-              <p className="mt-1 text-sm text-[#667085]">Lo stesso utente può entrare in più programmi con ruoli e licenze diverse.</p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-[#101828]">Programmi da attivare</h3>
+                  <p className="mt-1 text-sm text-[#667085]">Lo stesso utente può entrare in più programmi con ruoli e licenze diverse.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={applySecondaryMasterPreset}
+                  className="rounded-2xl border border-[#b2ccff] bg-white px-4 py-2 text-sm font-bold text-[#175cd3] hover:bg-[#eef4ff]"
+                >
+                  Imposta master secondario
+                </button>
+              </div>
+              <div className="mt-3 rounded-2xl border border-[#d9e2ef] bg-[#f8fafc] px-4 py-3 text-sm leading-6 text-[#516079]">
+                Il master secondario gestisce gli utenti dal Master Admin, può eliminare clienti non master e riceve accesso admin a Margin Pilot, Launch Pilot e Standard Pilot.
+              </div>
             </div>
             {form.assignments.map((assignment) => {
               const program = programs.find((item) => item.slug === assignment.program)!;
