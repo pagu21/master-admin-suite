@@ -47,7 +47,7 @@ import { createSupabaseBrowserClient, hasSupabaseBrowserConfig } from "@/lib/sup
 
 const MoneyIcon = moneyIcon;
 
-type MarginAccessProfile = "completo" | "operativo" | "limitato" | "personalizzato";
+type MarginAccessProfile = "completo" | "operativo" | "budget" | "limitato" | "personalizzato";
 
 type MarginPermissionKey =
   | "dashboard"
@@ -73,6 +73,7 @@ type MarginAccessConfig = {
 const marginAccessProfileLabels: Record<MarginAccessProfile, string> = {
   completo: "Completo",
   operativo: "Operativo",
+  budget: "Solo Budget",
   limitato: "Limitato",
   personalizzato: "Personalizzato"
 };
@@ -174,6 +175,18 @@ function presetMarginAccessConfig(profile: MarginAccessProfile): MarginAccessCon
         sales: true,
         products: true,
         settings: true,
+        reports: true
+      }
+    };
+  }
+  if (profile === "budget") {
+    return {
+      profile,
+      readOnly: false,
+      permissions: {
+        ...allMarginPermissions(false),
+        dashboard: true,
+        budget: true,
         reports: true
       }
     };
@@ -465,6 +478,7 @@ export function AdminSuite() {
               setShowEmails={setShowEmails}
             />
           )}
+          {activeSection === "profiles" && <ProfilesGuideSection />}
           {activeSection === "programs" && <ProgramsSection />}
           {activeSection === "licenses" && <LicensesSection users={users} onUpdateStatus={handleUpdateLicenseStatus} onEditUser={setEditingUser} />}
           {activeSection === "plans" && <PlansSection />}
@@ -698,7 +712,12 @@ function UsersSection({
             <tr key={user.id}>
               <Td>
                 <div>
-                  <p className="font-bold">{user.name}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-bold">{user.name}</p>
+                    <span className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.08em] ${userHierarchyClasses(user)}`}>
+                      {userHierarchyLabel(user)}
+                    </span>
+                  </div>
                   <p className="text-sm text-[#667085]">{showEmails ? user.email : maskEmail(user.email)}</p>
                   <p className="text-xs text-[#98a2b3]">{user.company} · {user.city}</p>
                 </div>
@@ -759,6 +778,52 @@ function ProgramsSection() {
             </div>
           </div>
         ))}
+      </div>
+    </Panel>
+  );
+}
+
+function ProfilesGuideSection() {
+  const profiles = [
+    {
+      title: "Super Master",
+      tone: "border-[#7c3aed] bg-[#f5f3ff] text-[#5b21b6]",
+      description: "Accesso completo alla suite, ai programmi e alle impostazioni strategiche."
+    },
+    {
+      title: "Master Secondario",
+      tone: "border-[#175cd3] bg-[#eef4ff] text-[#175cd3]",
+      description: "Gestisce utenti, licenze e clienti assegnati con funzioni operative avanzate."
+    },
+    {
+      title: "Cliente",
+      tone: "border-[#039855] bg-[#ecfdf3] text-[#067647]",
+      description: "Accede solo ai programmi e ai progetti abilitati dalla propria licenza."
+    },
+    {
+      title: "Margin Pilot · Solo Budget",
+      tone: "border-[#f79009] bg-[#fffaeb] text-[#b54708]",
+      description: "Profilo essenziale per leggere dashboard, budget e report senza funzioni gestionali complesse."
+    }
+  ];
+
+  return (
+    <Panel title="Profili e permessi">
+      <div className="grid gap-4 md:grid-cols-2">
+        {profiles.map((profile) => (
+          <div key={profile.title} className={`rounded-[24px] border p-5 ${profile.tone}`}>
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-1 h-5 w-5 shrink-0" />
+              <div>
+                <h3 className="text-xl font-bold">{profile.title}</h3>
+                <p className="mt-2 text-sm leading-6 opacity-90">{profile.description}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 rounded-3xl border border-[#d9e2ef] bg-white p-5 text-sm leading-6 text-[#516079]">
+        I profili sono pensati per mantenere una gestione semplice: una persona può avere più programmi associati, ma ogni programma conserva ruolo, licenza e permessi specifici.
       </div>
     </Panel>
   );
@@ -1168,12 +1233,24 @@ function licenseStatusLabel(status: LicenseStatus) {
 
 function roleLabel(role: AdminUser["accesses"][number]["role"]) {
   const labels: Record<AdminUser["accesses"][number]["role"], string> = {
-    admin: "Master",
+    admin: "Master Secondario",
     consulente: "Consulente",
     ristoratore: "Ristoratore",
     utente: "Utente"
   };
   return labels[role];
+}
+
+function userHierarchyLabel(user: AdminUser) {
+  if (user.isSuperAdmin) return "Super Master";
+  if (user.isAdmin || user.accesses.some((access) => access.role === "admin")) return "Master Secondario";
+  return "Cliente";
+}
+
+function userHierarchyClasses(user: AdminUser) {
+  if (user.isSuperAdmin) return "border-[#ddd6fe] bg-[#f5f3ff] text-[#5b21b6]";
+  if (user.isAdmin || user.accesses.some((access) => access.role === "admin")) return "border-[#b2ccff] bg-[#eef4ff] text-[#175cd3]";
+  return "border-[#abefc6] bg-[#ecfdf3] text-[#067647]";
 }
 
 function IconButton({ label, icon: Icon, onClick }: { label: string; icon: ComponentType<{ className?: string }>; onClick?: () => void }) {
@@ -1190,6 +1267,8 @@ function IconButton({ label, icon: Icon, onClick }: { label: string; icon: Compo
 }
 
 function CredentialsModal({ user, onClose, onResetPassword }: { user: AdminUser; onClose: () => void; onResetPassword: (user: AdminUser) => void }) {
+  const [showProtectedPassword, setShowProtectedPassword] = useState(false);
+
   async function copyEmail() {
     await navigator.clipboard.writeText(user.email).catch(() => undefined);
     window.alert("Email copiata.");
@@ -1201,9 +1280,25 @@ function CredentialsModal({ user, onClose, onResetPassword }: { user: AdminUser;
         <div className="rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-5">
           <p className="text-sm font-semibold text-[#667085]">Email di accesso</p>
           <p className="mt-2 break-all text-xl font-bold text-[#101828]">{user.email}</p>
-          <p className="mt-3 text-sm leading-6 text-[#667085]">
-            La password non può essere visualizzata per sicurezza. Puoi inviare una email di recupero password al cliente.
-          </p>
+          <div className="mt-4 rounded-2xl border border-[#d9e2ef] bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-[#667085]">Password</p>
+              <button
+                type="button"
+                onClick={() => setShowProtectedPassword(!showProtectedPassword)}
+                className="inline-flex items-center gap-2 rounded-xl border border-[#d0d5dd] px-3 py-2 text-xs font-bold text-[#344054] hover:border-[#175cd3] hover:text-[#175cd3]"
+              >
+                {showProtectedPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {showProtectedPassword ? "Nascondi" : "Mostra"}
+              </button>
+            </div>
+            <p className="mt-2 text-sm font-bold text-[#101828]">
+              {showProtectedPassword ? "Non visualizzabile: genera un recupero password sicuro." : "••••••••••••"}
+            </p>
+            <p className="mt-3 text-sm leading-6 text-[#667085]">
+              Le password reali non vengono conservate in chiaro. Per sicurezza puoi inviare una procedura di recupero o rigenerare le credenziali.
+            </p>
+          </div>
         </div>
         <div className="grid gap-2">
           {user.accesses.map((access) => (

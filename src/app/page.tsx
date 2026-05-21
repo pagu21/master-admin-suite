@@ -34,11 +34,11 @@ export default function Home() {
         <div className="grid flex-1 items-center gap-12 py-14 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
             <h2 className="max-w-3xl text-5xl font-bold leading-[1.02] tracking-tight text-[#07111f] md:text-7xl">
-              Tutti i tuoi software Pilot, governati da un solo punto.
+              Strumenti professionali per decidere, controllare e far crescere il tuo ristorante.
             </h2>
             <p className="mt-6 max-w-2xl text-xl leading-8 text-[#516079]">
-              Crea clienti, assegna programmi e controlla licenze e accessi con un pannello semplice,
-              ordinato e pronto a far crescere l&apos;intero ecosistema.
+              Accedi ai prodotti Pilot dedicati a marginalità, prefattibilità e standard operativi.
+              Ogni area è pensata per rendere il lavoro più chiaro, ordinato e affidabile.
             </p>
           </div>
 
@@ -65,7 +65,7 @@ export default function Home() {
                   <span className={program.active ? "font-semibold text-[#0f766e]" : "font-semibold text-[#b54708]"}>
                     {program.active ? "Programma attivo" : "In predisposizione"}
                   </span>
-                  <span className="text-[#667085]">{new URL(productLoginUrls[program.slug]).hostname}</span>
+                  <span className="font-semibold text-[#175cd3]">Apri area</span>
                 </div>
               </a>
             ))}

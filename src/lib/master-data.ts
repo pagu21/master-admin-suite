@@ -40,6 +40,8 @@ export type AdminUser = {
   email: string;
   company: string;
   city: string;
+  isAdmin?: boolean;
+  isSuperAdmin?: boolean;
   status: "active" | "suspended";
   lastAccess: string;
   accesses: Array<{
@@ -126,6 +128,7 @@ export const programs: Program[] = [
 export const sidebarItems: Array<{ id: string; label: string; icon: LucideIcon }> = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "users", label: "Utenti", icon: UsersRound },
+  { id: "profiles", label: "Profili", icon: ShieldCheck },
   { id: "programs", label: "Programmi", icon: Building2 },
   { id: "licenses", label: "Licenze", icon: BadgeCheck },
   { id: "plans", label: "Piani commerciali", icon: ListChecks },

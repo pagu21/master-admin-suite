@@ -11,7 +11,7 @@ type ProgramAssignmentPayload = {
   startDate: string;
   endDate?: string;
   projectsPurchased?: number | null;
-  permissionProfile?: "completo" | "operativo" | "limitato" | "personalizzato";
+  permissionProfile?: "completo" | "operativo" | "budget" | "limitato" | "personalizzato";
   marginAccessConfig?: unknown;
 };
 

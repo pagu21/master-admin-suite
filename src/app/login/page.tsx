@@ -19,7 +19,7 @@ export default function LoginPage() {
     setMessage("");
 
     if (!hasSupabaseBrowserConfig()) {
-      setMessage("Configura le variabili Supabase per attivare il login reale. In locale puoi aprire /admin per vedere il pannello demo.");
+      setMessage("Accesso non disponibile: la piattaforma non risulta ancora collegata al sistema di autenticazione.");
       setLoading(false);
       return;
     }
@@ -69,7 +69,8 @@ export default function LoginPage() {
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-[#101828]">Accesso riservato</h1>
           <p className="mt-2 text-sm leading-6 text-[#667085]">
-            Area amministrativa centrale. L’accesso reale viene gestito con Supabase Auth.
+            Benvenuto nella piattaforma di controllo dei prodotti Pilot. Da qui gestisci accessi,
+            licenze e clienti con un ambiente riservato, ordinato e professionale.
           </p>
         </div>
         <form className="grid gap-4" onSubmit={onSubmit}>
@@ -124,9 +125,6 @@ export default function LoginPage() {
               </p>
             </div>
           )}
-          <Link className="text-center text-sm font-semibold text-[#175cd3]" href="/admin">
-            Apri pannello demo locale
-          </Link>
         </form>
       </div>
     </main>

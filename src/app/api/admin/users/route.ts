@@ -17,7 +17,7 @@ type CreateUserPayload = {
   startDate: string;
   endDate?: string;
   projectsPurchased?: number | null;
-  permissionProfile?: "completo" | "operativo" | "limitato" | "personalizzato";
+  permissionProfile?: "completo" | "operativo" | "budget" | "limitato" | "personalizzato";
   marginAccessConfig?: unknown;
   notes?: string;
 };
@@ -30,7 +30,7 @@ type ProgramAssignmentPayload = {
   startDate: string;
   endDate?: string;
   projectsPurchased?: number | null;
-  permissionProfile?: "completo" | "operativo" | "limitato" | "personalizzato";
+  permissionProfile?: "completo" | "operativo" | "budget" | "limitato" | "personalizzato";
   marginAccessConfig?: unknown;
   notes?: string;
 };
@@ -47,6 +47,8 @@ type ProfileRow = {
   full_name: string | null;
   company: string | null;
   city: string | null;
+  is_admin: boolean | null;
+  is_super_admin: boolean | null;
   status: "active" | "suspended" | "deleted";
   last_login_at: string | null;
   user_program_access?: Array<{
@@ -143,6 +145,8 @@ export async function GET() {
       full_name,
       company,
       city,
+      is_admin,
+      is_super_admin,
       status,
       last_login_at,
       user_program_access (
@@ -173,6 +177,8 @@ export async function GET() {
     email: row.email,
     company: row.company || "-",
     city: row.city || "-",
+    isAdmin: Boolean(row.is_admin),
+    isSuperAdmin: Boolean(row.is_super_admin),
     status: row.status === "suspended" ? "suspended" : "active",
     lastAccess: row.last_login_at ? new Date(row.last_login_at).toLocaleString("it-IT") : "Mai",
     accesses: (row.user_program_access ?? [])
