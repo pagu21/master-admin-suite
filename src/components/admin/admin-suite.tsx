@@ -239,6 +239,7 @@ export function AdminSuite() {
   const [showEmails, setShowEmails] = useState(false);
   const [credentialsUser, setCredentialsUser] = useState<AdminUser | null>(null);
   const [detailsUser, setDetailsUser] = useState<AdminUser | null>(null);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -286,6 +287,42 @@ export function AdminSuite() {
       setUsers((current) => [result.user as AdminUser, ...current.filter((user) => user.id !== result.user?.id)]);
     }
     setIsCreateUserOpen(false);
+    setActiveSection("users");
+  }
+
+  async function reloadUsers() {
+    const updatedResponse = await fetch("/api/admin/users", { cache: "no-store" });
+    const updatedResult = (await updatedResponse.json().catch(() => null)) as { users?: AdminUser[] } | null;
+    if (updatedResponse.ok && updatedResult?.users) {
+      setUsers(updatedResult.users);
+      return true;
+    }
+    return false;
+  }
+
+  async function handleUpdateUser(payload: CreateUserPayload) {
+    setCreateUserMessage("");
+    const userId = payload.existingUserId;
+    const response = await fetch(`/api/admin/users/${userId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...payload,
+        assignments: payload.assignments.map((assignment) => ({
+          ...assignment,
+          projectsPurchased: assignment.licenseType.startsWith("project_pack") ? assignment.projectsPurchased : null
+        }))
+      })
+    });
+    const result = (await response.json().catch(() => null)) as { error?: string } | null;
+
+    if (!response.ok) {
+      setCreateUserMessage(result?.error || "Utente non aggiornato.");
+      return;
+    }
+
+    await reloadUsers();
+    setEditingUser(null);
     setActiveSection("users");
   }
 
@@ -404,6 +441,7 @@ export function AdminSuite() {
               onResetPassword={handleResetPassword}
               onShowCredentials={setCredentialsUser}
               onShowDetails={setDetailsUser}
+              onEditUser={setEditingUser}
               showEmails={showEmails}
               setShowEmails={setShowEmails}
             />
@@ -431,6 +469,18 @@ export function AdminSuite() {
       )}
       {credentialsUser && <CredentialsModal user={credentialsUser} onClose={() => setCredentialsUser(null)} onResetPassword={handleResetPassword} />}
       {detailsUser && <UserDetailsModal user={detailsUser} onClose={() => setDetailsUser(null)} />}
+      {editingUser && (
+        <CreateUserModal
+          message={createUserMessage}
+          users={users}
+          initialUser={editingUser}
+          onClose={() => {
+            setEditingUser(null);
+            setCreateUserMessage("");
+          }}
+          onSubmit={handleUpdateUser}
+        />
+      )}
     </main>
   );
 }
@@ -533,6 +583,7 @@ function UsersSection({
   onResetPassword,
   onShowCredentials,
   onShowDetails,
+  onEditUser,
   showEmails,
   setShowEmails
 }: {
@@ -548,6 +599,7 @@ function UsersSection({
   onResetPassword: (user: AdminUser) => void;
   onShowCredentials: (user: AdminUser) => void;
   onShowDetails: (user: AdminUser) => void;
+  onEditUser: (user: AdminUser) => void;
   showEmails: boolean;
   setShowEmails: (value: boolean) => void;
 }) {
@@ -631,6 +683,13 @@ function UsersSection({
               <Td><span className="numeric text-sm font-semibold">{user.lastAccess}</span></Td>
               <Td>
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onEditUser(user)}
+                    className="rounded-xl border border-[#b2ccff] bg-[#eef4ff] px-3 py-2 text-xs font-bold text-[#175cd3] hover:bg-[#dbeafe]"
+                  >
+                    Modifica
+                  </button>
                   <IconButton label="Reset password" icon={RotateCcw} onClick={() => onResetPassword(user)} />
                   <IconButton label="Credenziali" icon={KeyRound} onClick={() => onShowCredentials(user)} />
                   <IconButton label="Dettagli" icon={MoreHorizontal} onClick={() => onShowDetails(user)} />
@@ -1176,27 +1235,67 @@ const defaultAssignments = (): ProgramAssignmentForm[] => [
   }
 ];
 
+function marginAccessConfigFromNotes(notes?: string) {
+  const marker = "[MARGINPILOT_ACCESS_CONFIG]";
+  const index = notes?.indexOf(marker) ?? -1;
+  if (!notes || index < 0) return presetMarginAccessConfig("completo");
+  const raw = notes.slice(index + marker.length).trim();
+  try {
+    const parsed = JSON.parse(raw) as MarginAccessConfig;
+    return normalizeMarginAccessConfig(parsed);
+  } catch {
+    return presetMarginAccessConfig("completo");
+  }
+}
+
+function assignmentsFromUser(user?: AdminUser | null): ProgramAssignmentForm[] {
+  const assignments = defaultAssignments();
+  if (!user) return assignments;
+
+  return assignments.map((assignment) => {
+    const access = user.accesses.find((item) => item.program === assignment.program);
+    if (!access) return { ...assignment, enabled: false };
+    const marginAccessConfig = assignment.program === "margin-pilot"
+      ? marginAccessConfigFromNotes(access.notes)
+      : assignment.marginAccessConfig;
+    return {
+      ...assignment,
+      enabled: access.licenseStatus !== "suspended",
+      role: access.role,
+      licenseType: access.licenseType,
+      startDate: access.startDate || todayIso(),
+      endDate: access.endDate || "",
+      projectsPurchased: access.projectsPurchased ?? assignment.projectsPurchased,
+      permissionProfile: marginAccessConfig.profile,
+      marginAccessConfig
+    };
+  });
+}
+
 function CreateUserModal({
   message,
   users,
+  initialUser,
   onClose,
   onSubmit
 }: {
   message: string;
   users: AdminUser[];
+  initialUser?: AdminUser | null;
   onClose: () => void;
   onSubmit: (payload: CreateUserPayload) => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
+  const isEditing = Boolean(initialUser);
   const [form, setForm] = useState<CreateUserPayload>({
-    mode: "new",
-    existingUserId: "",
-    fullName: "",
-    email: "",
+    mode: initialUser ? "existing" : "new",
+    existingUserId: initialUser?.id ?? "",
+    fullName: initialUser?.name ?? "",
+    email: initialUser?.email ?? "",
     password: "",
-    company: "",
-    city: "",
-    assignments: defaultAssignments(),
+    company: initialUser?.company === "-" ? "" : initialUser?.company ?? "",
+    city: initialUser?.city === "-" ? "" : initialUser?.city ?? "",
+    assignments: assignmentsFromUser(initialUser),
     notes: ""
   });
 
@@ -1272,7 +1371,7 @@ function CreateUserModal({
       company: mode === "existing" ? firstExisting?.company ?? "" : "",
       city: mode === "existing" ? firstExisting?.city ?? "" : "",
       password: mode === "existing" ? "" : current.password,
-      assignments: defaultAssignments()
+      assignments: mode === "existing" ? assignmentsFromUser(firstExisting) : defaultAssignments()
     }));
   }
 
@@ -1284,7 +1383,8 @@ function CreateUserModal({
       fullName: selected?.name ?? "",
       email: selected?.email ?? "",
       company: selected?.company ?? "",
-      city: selected?.city ?? ""
+      city: selected?.city ?? "",
+      assignments: assignmentsFromUser(selected)
     }));
   }
 
@@ -1294,7 +1394,7 @@ function CreateUserModal({
     await onSubmit({
       ...form,
       assignments: form.assignments
-        .filter((assignment) => assignment.enabled)
+        .filter((assignment) => isEditing || assignment.enabled)
         .map((assignment) => ({
           ...assignment,
           projectsPurchased: assignment.licenseType.startsWith("project_pack") ? assignment.projectsPurchased : null
@@ -1309,9 +1409,11 @@ function CreateUserModal({
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.14em] text-[#175cd3]">Master Admin Suite</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight">Crea nuovo utente</h2>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight">{isEditing ? "Modifica utente" : "Crea nuovo utente"}</h2>
             <p className="mt-2 text-sm leading-6 text-[#667085]">
-              Assegna programma, ruolo e licenza. Le regole di accesso vengono salvate nel database centrale.
+              {isEditing
+                ? "Aggiorna dati, programmi, ruoli, licenze e permessi dal database centrale."
+                : "Assegna programma, ruolo e licenza. Le regole di accesso vengono salvate nel database centrale."}
             </p>
           </div>
           <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full bg-[#f2f4f7] text-[#516079]">
@@ -1320,24 +1422,26 @@ function CreateUserModal({
         </div>
 
         <form className="grid gap-5" onSubmit={submit}>
-          <div className="grid gap-3 rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-3 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => updateMode("new")}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${form.mode === "new" ? "bg-[#123c69] text-white" : "bg-white text-[#344054]"}`}
-            >
-              Nuovo utente
-            </button>
-            <button
-              type="button"
-              onClick={() => updateMode("existing")}
-              className={`rounded-2xl px-4 py-3 text-sm font-bold ${form.mode === "existing" ? "bg-[#123c69] text-white" : "bg-white text-[#344054]"}`}
-            >
-              Utente esistente
-            </button>
-          </div>
+          {!isEditing && (
+            <div className="grid gap-3 rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => updateMode("new")}
+                className={`rounded-2xl px-4 py-3 text-sm font-bold ${form.mode === "new" ? "bg-[#123c69] text-white" : "bg-white text-[#344054]"}`}
+              >
+                Nuovo utente
+              </button>
+              <button
+                type="button"
+                onClick={() => updateMode("existing")}
+                className={`rounded-2xl px-4 py-3 text-sm font-bold ${form.mode === "existing" ? "bg-[#123c69] text-white" : "bg-white text-[#344054]"}`}
+              >
+                Utente esistente
+              </button>
+            </div>
+          )}
 
-          {form.mode === "existing" && (
+          {form.mode === "existing" && !isEditing && (
             <Field label="Scegli utente esistente">
               <select value={form.existingUserId} onChange={(event) => updateExistingUser(event.target.value)} className="input" required>
                 <option value="">Seleziona utente</option>
@@ -1350,21 +1454,21 @@ function CreateUserModal({
 
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Nome completo">
-              <input required disabled={form.mode === "existing"} value={form.fullName} onChange={(event) => update("fullName", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
+              <input required disabled={form.mode === "existing" && !isEditing} value={form.fullName} onChange={(event) => update("fullName", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
             </Field>
             <Field label="Email">
-              <input required disabled={form.mode === "existing"} type="email" value={form.email} onChange={(event) => update("email", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
+              <input required disabled={form.mode === "existing" && !isEditing} type="email" value={form.email} onChange={(event) => update("email", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
             </Field>
-            {form.mode === "new" && (
+            {form.mode === "new" && !isEditing && (
               <Field label="Password iniziale">
                 <input required type="password" minLength={8} value={form.password} onChange={(event) => update("password", event.target.value)} className="input" />
               </Field>
             )}
             <Field label="Azienda">
-              <input disabled={form.mode === "existing"} value={form.company} onChange={(event) => update("company", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
+              <input disabled={form.mode === "existing" && !isEditing} value={form.company} onChange={(event) => update("company", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
             </Field>
             <Field label="Città">
-              <input disabled={form.mode === "existing"} value={form.city} onChange={(event) => update("city", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
+              <input disabled={form.mode === "existing" && !isEditing} value={form.city} onChange={(event) => update("city", event.target.value)} className="input disabled:bg-[#f2f4f7]" />
             </Field>
           </div>
           <div className="grid gap-4">
@@ -1449,7 +1553,7 @@ function CreateUserModal({
               Annulla
             </button>
             <button disabled={loading} className="rounded-2xl bg-[#123c69] px-5 py-3 font-bold text-white disabled:opacity-60">
-              {loading ? "Creazione..." : "Crea utente"}
+              {loading ? "Salvataggio..." : isEditing ? "Salva modifiche" : "Crea utente"}
             </button>
           </div>
         </form>

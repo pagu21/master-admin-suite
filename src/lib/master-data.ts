@@ -51,6 +51,8 @@ export type AdminUser = {
     projectsUsed?: number;
     startDate: string;
     endDate?: string;
+    notes?: string;
+    createdAt?: string;
   }>;
 };
 

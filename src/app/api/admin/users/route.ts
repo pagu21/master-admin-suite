@@ -60,6 +60,8 @@ type ProfileRow = {
       end_date: string | null;
       projects_purchased: number | null;
       projects_used: number;
+      notes: string | null;
+      created_at: string;
     }>;
   }>;
 };
@@ -153,7 +155,9 @@ export async function GET() {
           start_date,
           end_date,
           projects_purchased,
-          projects_used
+          projects_used,
+          notes,
+          created_at
         )
       )
     `)
@@ -176,7 +180,9 @@ export async function GET() {
         const program = firstRelation(access.programs);
         const role = firstRelation(access.roles);
         if (!program?.slug) return [];
-        const license = access.licenses?.[0];
+        const license = [...(access.licenses ?? [])].sort((left, right) => {
+          return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+        })[0];
         return [{
           program: program.slug,
           role: role?.code || "utente",
@@ -185,7 +191,9 @@ export async function GET() {
           projectsPurchased: license?.projects_purchased ?? undefined,
           projectsUsed: license?.projects_used ?? 0,
           startDate: license?.start_date || "",
-          endDate: license?.end_date || undefined
+          endDate: license?.end_date || undefined,
+          notes: license?.notes || undefined,
+          createdAt: license?.created_at
         }];
       })
   }));
