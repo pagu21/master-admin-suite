@@ -92,6 +92,55 @@ const marginPermissionLabels: Record<MarginPermissionKey, { label: string; descr
 
 const marginPermissionKeys = Object.keys(marginPermissionLabels) as MarginPermissionKey[];
 
+const marginPermissionToneByKey: Record<MarginPermissionKey, "brand" | "emerald" | "sky" | "amber" | "slate"> = {
+  dashboard: "brand",
+  sales: "brand",
+  costs: "emerald",
+  suppliers: "emerald",
+  products: "sky",
+  recipes: "sky",
+  salePrices: "sky",
+  margins: "amber",
+  analytics: "amber",
+  budget: "amber",
+  settings: "slate",
+  reports: "slate",
+  admin: "slate"
+};
+
+const marginPermissionToneClasses: Record<"brand" | "emerald" | "sky" | "amber" | "slate", { enabled: string; disabled: string; checkbox: string; chip: string }> = {
+  brand: {
+    enabled: "border-[#b2ccff] bg-[#eef4ff] text-[#123c69]",
+    disabled: "border-[#d9e2ef] bg-white text-[#516079]",
+    checkbox: "accent-[#175cd3]",
+    chip: "bg-[#eef4ff] text-[#175cd3]"
+  },
+  emerald: {
+    enabled: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    disabled: "border-[#d9e2ef] bg-white text-[#516079]",
+    checkbox: "accent-emerald-600",
+    chip: "bg-emerald-50 text-emerald-700"
+  },
+  sky: {
+    enabled: "border-sky-200 bg-sky-50 text-sky-800",
+    disabled: "border-[#d9e2ef] bg-white text-[#516079]",
+    checkbox: "accent-sky-600",
+    chip: "bg-sky-50 text-sky-700"
+  },
+  amber: {
+    enabled: "border-amber-200 bg-amber-50 text-amber-800",
+    disabled: "border-[#d9e2ef] bg-white text-[#516079]",
+    checkbox: "accent-amber-600",
+    chip: "bg-amber-50 text-amber-700"
+  },
+  slate: {
+    enabled: "border-slate-300 bg-slate-100 text-slate-800",
+    disabled: "border-[#d9e2ef] bg-white text-[#516079]",
+    checkbox: "accent-slate-600",
+    chip: "bg-slate-100 text-slate-700"
+  }
+};
+
 const allMarginPermissions = (value: boolean): Record<MarginPermissionKey, boolean> => ({
   dashboard: value,
   sales: value,
@@ -1032,22 +1081,29 @@ function MarginAccessConfigurator({ config, onChange }: { config: MarginAccessCo
       <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         {marginPermissionKeys.map((key) => {
           const meta = marginPermissionLabels[key];
+          const tone = marginPermissionToneByKey[key];
+          const toneClasses = marginPermissionToneClasses[tone];
           const checked = normalized.permissions[key];
           return (
             <label
               key={key}
               className={`flex gap-3 rounded-2xl border px-3 py-2.5 transition ${
-                checked ? "border-[#b2ccff] bg-[#eef4ff] text-[#123c69]" : "border-[#d9e2ef] bg-white text-[#516079] hover:border-[#175cd3]"
+                checked ? toneClasses.enabled : `${toneClasses.disabled} hover:border-[#175cd3]`
               }`}
             >
               <input
                 type="checkbox"
                 checked={checked}
                 onChange={(event) => updatePermission(key, event.target.checked)}
-                className="mt-1 h-4 w-4 shrink-0"
+                className={`mt-1 h-4 w-4 shrink-0 ${toneClasses.checkbox}`}
               />
               <span>
-                <span className="block text-sm font-bold">{meta.label}</span>
+                <span className="flex flex-wrap items-center gap-2 text-sm font-bold">
+                  {meta.label}
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] ${toneClasses.chip}`}>
+                    {tone === "brand" ? "operativo" : tone === "emerald" ? "costi" : tone === "sky" ? "prodotto" : tone === "amber" ? "analisi" : "sistema"}
+                  </span>
+                </span>
                 <span className="mt-0.5 block text-xs leading-5 opacity-75">{meta.description}</span>
               </span>
             </label>
