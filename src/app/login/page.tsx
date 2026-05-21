@@ -31,6 +31,7 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
+    await fetch("/api/auth/track-login", { method: "POST" }).catch(() => undefined);
     window.location.href = "/admin";
   }
 

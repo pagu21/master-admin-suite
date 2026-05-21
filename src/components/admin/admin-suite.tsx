@@ -602,8 +602,17 @@ function UsersSection({
   showEmails: boolean;
   setShowEmails: (value: boolean) => void;
 }) {
+  const usersWithoutPrograms = users.filter((user) => user.accesses.length === 0).length;
+  const suspendedUsers = users.filter((user) => user.status === "suspended" || user.accesses.some((access) => access.licenseStatus === "suspended")).length;
+  const neverLoggedUsers = users.filter((user) => user.lastAccess === "Mai").length;
+
   return (
     <Panel title="Gestione utenti" action="Nuovo utente" onAction={onCreateUser}>
+      <div className="mb-5 grid gap-3 md:grid-cols-3">
+        <AdminAlertCard label="Senza programma" value={usersWithoutPrograms} tone={usersWithoutPrograms > 0 ? "amber" : "green"} />
+        <AdminAlertCard label="Accessi sospesi" value={suspendedUsers} tone={suspendedUsers > 0 ? "red" : "green"} />
+        <AdminAlertCard label="Mai entrati" value={neverLoggedUsers} tone={neverLoggedUsers > 0 ? "blue" : "green"} />
+      </div>
       <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_220px_220px_auto]">
         <label className="relative">
           <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98a2b3]" />
@@ -960,6 +969,22 @@ function Badge({ value, label }: { value: string; label: string }) {
     <span className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-bold ${statusClasses[value] || "bg-[#f9fafb] text-[#344054] border-[#d0d5dd]"}`}>
       {label}
     </span>
+  );
+}
+
+function AdminAlertCard({ label, value, tone }: { label: string; value: number; tone: "green" | "amber" | "red" | "blue" }) {
+  const classes = {
+    green: "border-[#abefc6] bg-[#ecfdf3] text-[#067647]",
+    amber: "border-[#fedf89] bg-[#fffaeb] text-[#b54708]",
+    red: "border-[#fecdca] bg-[#fef3f2] text-[#b42318]",
+    blue: "border-[#b2ccff] bg-[#eef4ff] text-[#175cd3]"
+  };
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${classes[tone]}`}>
+      <p className="text-xs font-bold uppercase tracking-[0.08em] opacity-80">{label}</p>
+      <p className="mt-1 text-2xl font-black">{value}</p>
+    </div>
   );
 }
 

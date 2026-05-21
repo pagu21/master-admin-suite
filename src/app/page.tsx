@@ -33,9 +33,6 @@ export default function Home() {
 
         <div className="grid flex-1 items-center gap-12 py-14 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
-            <p className="mb-5 inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#0f766e] shadow-sm">
-              Pannello centrale indipendente
-            </p>
             <h2 className="max-w-3xl text-5xl font-bold leading-[1.02] tracking-tight text-[#07111f] md:text-7xl">
               Tutti i tuoi software Pilot, governati da un solo punto.
             </h2>
