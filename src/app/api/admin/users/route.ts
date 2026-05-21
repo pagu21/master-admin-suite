@@ -18,6 +18,7 @@ type CreateUserPayload = {
   endDate?: string;
   projectsPurchased?: number | null;
   permissionProfile?: "completo" | "operativo" | "limitato" | "personalizzato";
+  marginAccessConfig?: unknown;
   notes?: string;
 };
 
@@ -30,6 +31,7 @@ type ProgramAssignmentPayload = {
   endDate?: string;
   projectsPurchased?: number | null;
   permissionProfile?: "completo" | "operativo" | "limitato" | "personalizzato";
+  marginAccessConfig?: unknown;
   notes?: string;
 };
 
@@ -209,6 +211,7 @@ export async function POST(request: Request) {
     endDate: (payload as CreateUserPayload).endDate,
     projectsPurchased: (payload as CreateUserPayload).projectsPurchased,
     permissionProfile: (payload as CreateUserPayload).permissionProfile,
+    marginAccessConfig: (payload as CreateUserPayload).marginAccessConfig,
     notes: payload.notes
   }] : []).filter((assignment) => assignment.enabled);
 
@@ -278,7 +281,10 @@ export async function POST(request: Request) {
     const projectsPurchased = licenseProjects(assignment.licenseType, assignment.projectsPurchased);
     const licenseNotes = [
       assignment.notes?.trim(),
-      assignment.permissionProfile ? `Profilo permessi: ${assignment.permissionProfile}` : ""
+      assignment.permissionProfile ? `Profilo permessi: ${assignment.permissionProfile}` : "",
+      assignment.program === "margin-pilot" && assignment.marginAccessConfig
+        ? `[MARGINPILOT_ACCESS_CONFIG]${JSON.stringify(assignment.marginAccessConfig)}`
+        : ""
     ].filter(Boolean).join("\n");
 
     const { data: program, error: programError } = await admin

@@ -44,6 +44,126 @@ import { createSupabaseBrowserClient, hasSupabaseBrowserConfig } from "@/lib/sup
 
 const MoneyIcon = moneyIcon;
 
+type MarginAccessProfile = "completo" | "operativo" | "limitato" | "personalizzato";
+
+type MarginPermissionKey =
+  | "dashboard"
+  | "sales"
+  | "costs"
+  | "suppliers"
+  | "products"
+  | "recipes"
+  | "salePrices"
+  | "margins"
+  | "analytics"
+  | "budget"
+  | "settings"
+  | "reports"
+  | "admin";
+
+type MarginAccessConfig = {
+  profile: MarginAccessProfile;
+  readOnly: boolean;
+  permissions: Record<MarginPermissionKey, boolean>;
+};
+
+const marginAccessProfileLabels: Record<MarginAccessProfile, string> = {
+  completo: "Completo",
+  operativo: "Operativo",
+  limitato: "Limitato",
+  personalizzato: "Personalizzato"
+};
+
+const marginPermissionLabels: Record<MarginPermissionKey, { label: string; description: string }> = {
+  dashboard: { label: "Cruscotto", description: "Sintesi operativa iniziale e indicatori principali." },
+  sales: { label: "Venduto e coperti", description: "Fatturato, coperti, grafici venduto e sale operative." },
+  costs: { label: "Costi", description: "Gestione costi, struttura costi e dati economici." },
+  suppliers: { label: "Fornitori e fatture", description: "Fatture, prodotti acquistati, storico ingredienti e sconti." },
+  products: { label: "Prodotti", description: "Menu, food, beverage, categorie, varianti e gestione basi." },
+  recipes: { label: "Schede prodotto e ricette", description: "Ricette, ingredienti, basi e composizione prodotto." },
+  salePrices: { label: "Prezzi vendita", description: "Visibilita e modifica dei prezzi di vendita." },
+  margins: { label: "Margini e food cost", description: "Costo ricetta, margini, food cost e prezzi di equilibrio." },
+  analytics: { label: "Analisi economiche", description: "Riepiloghi, break even, menu pricing e analisi food cost." },
+  budget: { label: "Budget", description: "Budget operativo, piano mensile, grafici e stampa budget." },
+  settings: { label: "Configurazione locale", description: "Info locale, sale, capienze e parametri operativi." },
+  reports: { label: "Report e stampe", description: "Pagine di stampa ed esportazione report." },
+  admin: { label: "Amministrazione accessi", description: "Gestione utenti, profili e permessi. Solo master." }
+};
+
+const marginPermissionKeys = Object.keys(marginPermissionLabels) as MarginPermissionKey[];
+
+const allMarginPermissions = (value: boolean): Record<MarginPermissionKey, boolean> => ({
+  dashboard: value,
+  sales: value,
+  costs: value,
+  suppliers: value,
+  products: value,
+  recipes: value,
+  salePrices: value,
+  margins: value,
+  analytics: value,
+  budget: value,
+  settings: value,
+  reports: value,
+  admin: false
+});
+
+function presetMarginAccessConfig(profile: MarginAccessProfile): MarginAccessConfig {
+  if (profile === "completo") {
+    return { profile, readOnly: false, permissions: allMarginPermissions(true) };
+  }
+  if (profile === "operativo") {
+    return {
+      profile,
+      readOnly: false,
+      permissions: {
+        ...allMarginPermissions(false),
+        dashboard: true,
+        sales: true,
+        products: true,
+        settings: true,
+        reports: true
+      }
+    };
+  }
+  if (profile === "limitato") {
+    return {
+      profile,
+      readOnly: true,
+      permissions: {
+        ...allMarginPermissions(false),
+        dashboard: true,
+        sales: true,
+        reports: true
+      }
+    };
+  }
+  return {
+    profile,
+    readOnly: false,
+    permissions: {
+      ...allMarginPermissions(false),
+      dashboard: true
+    }
+  };
+}
+
+function normalizeMarginAccessConfig(config: MarginAccessConfig): MarginAccessConfig {
+  const base = config.profile === "personalizzato" ? presetMarginAccessConfig("personalizzato") : presetMarginAccessConfig(config.profile);
+  const permissions = { ...base.permissions, ...config.permissions };
+
+  if (!permissions.products) {
+    permissions.recipes = false;
+    permissions.salePrices = false;
+    permissions.margins = false;
+  }
+  if (!permissions.recipes) permissions.margins = false;
+  if (!permissions.costs) permissions.suppliers = false;
+  permissions.admin = false;
+
+  return { profile: config.profile, readOnly: Boolean(config.readOnly), permissions };
+}
+
 const statusClasses: Record<string, string> = {
   active: "bg-[#ecfdf3] text-[#067647] border-[#abefc6]",
   paid: "bg-[#ecfdf3] text-[#067647] border-[#abefc6]",
@@ -848,6 +968,96 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
   );
 }
 
+function MarginAccessConfigurator({ config, onChange }: { config: MarginAccessConfig; onChange: (config: MarginAccessConfig) => void }) {
+  const normalized = normalizeMarginAccessConfig(config);
+
+  function updateProfile(profile: MarginAccessProfile) {
+    onChange(profile === "personalizzato" ? normalizeMarginAccessConfig({ ...normalized, profile }) : presetMarginAccessConfig(profile));
+  }
+
+  function updateReadOnly(readOnly: boolean) {
+    onChange(normalizeMarginAccessConfig({ ...normalized, readOnly }));
+  }
+
+  function updatePermission(key: MarginPermissionKey, value: boolean) {
+    onChange(
+      normalizeMarginAccessConfig({
+        ...normalized,
+        profile: "personalizzato",
+        permissions: {
+          ...normalized.permissions,
+          [key]: value
+        }
+      })
+    );
+  }
+
+  return (
+    <div className="rounded-3xl border border-[#c7d7ee] bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#175cd3]">Profilazione Margin Pilot</p>
+          <p className="mt-1 text-sm leading-6 text-[#667085]">
+            Scegli cosa il cliente puo vedere o modificare. Questa e la stessa logica della vecchia pagina master di Margin Pilot.
+          </p>
+        </div>
+        <label className="inline-flex items-center gap-2 rounded-2xl border border-[#fedf89] bg-[#fffaeb] px-3 py-2 text-xs font-bold text-[#b54708]">
+          <input
+            type="checkbox"
+            checked={normalized.readOnly}
+            onChange={(event) => updateReadOnly(event.target.checked)}
+            className="h-4 w-4"
+          />
+          Solo lettura
+        </label>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {(Object.keys(marginAccessProfileLabels) as MarginAccessProfile[]).map((profile) => (
+          <button
+            key={profile}
+            type="button"
+            onClick={() => updateProfile(profile)}
+            className={`rounded-2xl border px-3 py-2 text-left text-sm transition ${
+              normalized.profile === profile
+                ? "border-[#175cd3] bg-[#eef4ff] text-[#123c69]"
+                : "border-[#d9e2ef] bg-white text-[#516079] hover:border-[#175cd3]"
+            }`}
+          >
+            <span className="font-bold">{marginAccessProfileLabels[profile]}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {marginPermissionKeys.map((key) => {
+          const meta = marginPermissionLabels[key];
+          const checked = normalized.permissions[key];
+          return (
+            <label
+              key={key}
+              className={`flex gap-3 rounded-2xl border px-3 py-2.5 transition ${
+                checked ? "border-[#b2ccff] bg-[#eef4ff] text-[#123c69]" : "border-[#d9e2ef] bg-white text-[#516079] hover:border-[#175cd3]"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={(event) => updatePermission(key, event.target.checked)}
+                className="mt-1 h-4 w-4 shrink-0"
+              />
+              <span>
+                <span className="block text-sm font-bold">{meta.label}</span>
+                <span className="mt-0.5 block text-xs leading-5 opacity-75">{meta.description}</span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 type CreateUserPayload = {
   mode: "new" | "existing";
   existingUserId: string;
@@ -868,7 +1078,8 @@ type ProgramAssignmentForm = {
   startDate: string;
   endDate: string;
   projectsPurchased: number | null;
-  permissionProfile: "completo" | "operativo" | "limitato" | "personalizzato";
+  permissionProfile: MarginAccessProfile;
+  marginAccessConfig: MarginAccessConfig;
 };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -882,7 +1093,8 @@ const defaultAssignments = (): ProgramAssignmentForm[] => [
     startDate: todayIso(),
     endDate: "",
     projectsPurchased: null,
-    permissionProfile: "completo"
+    permissionProfile: "completo",
+    marginAccessConfig: presetMarginAccessConfig("completo")
   },
   {
     enabled: true,
@@ -892,7 +1104,8 @@ const defaultAssignments = (): ProgramAssignmentForm[] => [
     startDate: todayIso(),
     endDate: "",
     projectsPurchased: 1,
-    permissionProfile: "completo"
+    permissionProfile: "completo",
+    marginAccessConfig: presetMarginAccessConfig("completo")
   },
   {
     enabled: false,
@@ -902,7 +1115,8 @@ const defaultAssignments = (): ProgramAssignmentForm[] => [
     startDate: todayIso(),
     endDate: "",
     projectsPurchased: null,
-    permissionProfile: "completo"
+    permissionProfile: "completo",
+    marginAccessConfig: presetMarginAccessConfig("completo")
   }
 ];
 
@@ -968,8 +1182,26 @@ function CreateUserModal({
                 : 1
             : null;
         }
+        if (key === "permissionProfile") {
+          next.marginAccessConfig = presetMarginAccessConfig(value as MarginAccessProfile);
+        }
         return next;
       })
+    }));
+  }
+
+  function updateMarginAccessConfig(program: ProgramSlug, config: MarginAccessConfig) {
+    setForm((current) => ({
+      ...current,
+      assignments: current.assignments.map((assignment) =>
+        assignment.program === program
+          ? {
+              ...assignment,
+              permissionProfile: config.profile,
+              marginAccessConfig: normalizeMarginAccessConfig(config)
+            }
+          : assignment
+      )
     }));
   }
 
@@ -1111,18 +1343,12 @@ function CreateUserModal({
                         </select>
                       </Field>
                       {assignment.program === "margin-pilot" && (
-                        <Field label="Profilo Margin Pilot">
-                          <select
-                            value={assignment.permissionProfile}
-                            onChange={(event) => updateAssignment(assignment.program, "permissionProfile", event.target.value as ProgramAssignmentForm["permissionProfile"])}
-                            className="input"
-                          >
-                            <option value="completo">Completo - tutte le funzioni operative</option>
-                            <option value="operativo">Operativo - dati principali, prodotti e report</option>
-                            <option value="limitato">Limitato - sola lettura essenziale</option>
-                            <option value="personalizzato">Personalizzato - da configurare in dettaglio</option>
-                          </select>
-                        </Field>
+                        <div className="md:col-span-2">
+                          <MarginAccessConfigurator
+                            config={assignment.marginAccessConfig}
+                            onChange={(config) => updateMarginAccessConfig(assignment.program, config)}
+                          />
+                        </div>
                       )}
                       <Field label="Tipo licenza">
                         <select value={assignment.licenseType} onChange={(event) => updateAssignment(assignment.program, "licenseType", event.target.value as LicenseType)} className="input">
