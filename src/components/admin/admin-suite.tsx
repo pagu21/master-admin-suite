@@ -784,33 +784,128 @@ function ProgramsSection() {
 }
 
 function ProfilesGuideSection() {
-  const profiles = [
+  const masterProfiles = [
     {
       title: "Super Master",
       tone: "border-[#7c3aed] bg-[#f5f3ff] text-[#5b21b6]",
-      description: "Accesso completo alla suite, ai programmi e alle impostazioni strategiche."
+      description: "Profilo proprietario. Vede tutto, gestisce ogni programma, crea Master Secondari e può intervenire su utenti, licenze, ruoli e impostazioni."
     },
     {
       title: "Master Secondario",
       tone: "border-[#175cd3] bg-[#eef4ff] text-[#175cd3]",
-      description: "Gestisce utenti, licenze e clienti assegnati con funzioni operative avanzate."
+      description: "Profilo operativo interno. Può creare, modificare e cancellare utenti, assegnare programmi e accedere ai software abilitati."
     },
     {
       title: "Cliente",
       tone: "border-[#039855] bg-[#ecfdf3] text-[#067647]",
-      description: "Accede solo ai programmi e ai progetti abilitati dalla propria licenza."
+      description: "Profilo finale. Accede solo ai programmi, ai dati e alle funzioni previste dalla licenza assegnata."
+    }
+  ];
+
+  const programProfiles = [
+    {
+      program: "Margin Pilot",
+      accent: "from-[#0ea5e9] to-[#2563eb]",
+      intro: "Profili pensati per controllo margini, prezzi, budget, ricette, food cost e report gestionali.",
+      profiles: [
+        {
+          name: "Completo",
+          badge: "Profilo principale",
+          description: "Accesso a tutte le aree operative: cruscotto, venduto, costi, fornitori, prodotti, ricette, prezzi, margini, budget e report.",
+          use: "Da usare per titolare, direzione o responsabile che deve gestire tutto Margin Pilot."
+        },
+        {
+          name: "Operativo",
+          badge: "Gestione quotidiana",
+          description: "Accesso alle funzioni di lavoro giornaliero senza impostazioni amministrative avanzate.",
+          use: "Adatto a chi aggiorna dati, prodotti, costi e vendite ma non deve gestire utenti o permessi."
+        },
+        {
+          name: "Solo Budget",
+          badge: "Lettura guidata",
+          description: "Profilo essenziale per consultare budget, dashboard e report senza entrare nelle funzioni più complesse.",
+          use: "Utile per soci, proprietà o clienti che devono leggere i risultati senza modificare la struttura."
+        },
+        {
+          name: "Limitato",
+          badge: "Accesso ridotto",
+          description: "Accesso ristretto solo ad alcune sezioni decise dal Master.",
+          use: "Da usare quando una persona deve vedere o modificare solo una parte del programma."
+        },
+        {
+          name: "Personalizzato",
+          badge: "Su misura",
+          description: "Permessi scelti manualmente sezione per sezione.",
+          use: "Per casi specifici: consulenti, collaboratori esterni o clienti con esigenze particolari."
+        }
+      ]
     },
     {
-      title: "Margin Pilot · Solo Budget",
-      tone: "border-[#f79009] bg-[#fffaeb] text-[#b54708]",
-      description: "Profilo essenziale per leggere dashboard, budget e report senza funzioni gestionali complesse."
+      program: "Launch Pilot",
+      accent: "from-[#10b981] to-[#14b8a6]",
+      intro: "Profili pensati per prefattibilita, business plan, scenari, investimenti, finanziamenti e report bancabili.",
+      profiles: [
+        {
+          name: "Ristoratore",
+          badge: "Cliente diretto",
+          description: "Gestisce i propri progetti, compila il workflow guidato, visualizza simulazioni, KPI e report previsti dalla licenza.",
+          use: "Da assegnare al cliente che usa Launch Pilot per il proprio locale."
+        },
+        {
+          name: "Consulente",
+          badge: "Multi cliente",
+          description: "Gestisce piu clienti o progetti, con una logica piu ampia rispetto al singolo ristoratore.",
+          use: "Da assegnare a commercialisti, advisor, consulenti o professionisti che lavorano per piu clienti."
+        },
+        {
+          name: "Utente",
+          badge: "Supporto operativo",
+          description: "Accesso ordinario alle funzioni abilitate, senza privilegi amministrativi.",
+          use: "Per collaboratori o figure interne che aiutano nella compilazione."
+        },
+        {
+          name: "Master Secondario",
+          badge: "Gestione accessi",
+          description: "Può creare e gestire utenti anche su Launch Pilot quando autorizzato dal Super Master.",
+          use: "Per personale interno o partner autorizzati alla gestione commerciale e operativa."
+        }
+      ]
+    },
+    {
+      program: "Standard Pilot",
+      accent: "from-[#f59e0b] to-[#f97316]",
+      intro: "Profili predisposti per standard operativi, procedure, qualita e controllo organizzativo.",
+      profiles: [
+        {
+          name: "Utente",
+          badge: "Operativita base",
+          description: "Profilo standard per consultare e usare le funzioni abilitate del programma.",
+          use: "Per operatori, responsabili di reparto o personale che segue procedure e controlli."
+        },
+        {
+          name: "Consulente",
+          badge: "Supervisione",
+          description: "Profilo per seguire piu clienti o piu strutture quando Standard Pilot sara attivato.",
+          use: "Per consulenti qualità, franchisor o figure che coordinano procedure su più locali."
+        },
+        {
+          name: "Master Secondario",
+          badge: "Gestione accessi",
+          description: "Profilo amministrativo operativo per assegnare utenti, licenze e ruoli.",
+          use: "Da usare quando Standard Pilot sara gestito da una struttura commerciale o interna."
+        }
+      ]
     }
   ];
 
   return (
     <Panel title="Profili e permessi">
-      <div className="grid gap-4 md:grid-cols-2">
-        {profiles.map((profile) => (
+      <div className="mb-5 rounded-3xl border border-[#b2ccff] bg-[#eef4ff] p-5 text-sm leading-6 text-[#123c69]">
+        Questa pagina e visibile solo a Super Master e Master Secondari. Serve a scegliere il profilo corretto quando si crea o si modifica un utente, soprattutto quando la stessa persona usa piu programmi.
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {masterProfiles.map((profile) => (
           <div key={profile.title} className={`rounded-[24px] border p-5 ${profile.tone}`}>
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-1 h-5 w-5 shrink-0" />
@@ -822,8 +917,41 @@ function ProfilesGuideSection() {
           </div>
         ))}
       </div>
+
+      <div className="mt-6 grid gap-5">
+        {programProfiles.map((program) => (
+          <section key={program.program} className="overflow-hidden rounded-[28px] border border-[#d9e2ef] bg-white shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-[#e6edf6] p-5 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className={`mb-3 h-2 w-32 rounded-full bg-gradient-to-r ${program.accent}`} />
+                <h3 className="text-2xl font-black text-[#101828]">{program.program}</h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-[#667085]">{program.intro}</p>
+              </div>
+              <Badge value="profili" label={`${program.profiles.length} profili disponibili`} />
+            </div>
+            <div className="grid gap-3 p-5 lg:grid-cols-2">
+              {program.profiles.map((profile) => (
+                <article key={`${program.program}-${profile.name}`} className="rounded-3xl border border-[#e6edf6] bg-[#fbfcfe] p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-lg font-black text-[#101828]">{profile.name}</h4>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] text-[#516079] ring-1 ring-[#d9e2ef]">
+                      {profile.badge}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-[#516079]">{profile.description}</p>
+                  <div className="mt-4 rounded-2xl border border-[#d9e2ef] bg-white p-3 text-sm leading-6 text-[#344054]">
+                    <span className="font-bold text-[#101828]">Quando usarlo: </span>
+                    {profile.use}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+
       <div className="mt-5 rounded-3xl border border-[#d9e2ef] bg-white p-5 text-sm leading-6 text-[#516079]">
-        I profili sono pensati per mantenere una gestione semplice: una persona può avere più programmi associati, ma ogni programma conserva ruolo, licenza e permessi specifici.
+        Regola operativa: lo stesso utente puo avere piu programmi associati. Ogni programma mantiene ruolo, licenza, limiti progetto e permessi separati, così non serve ricreare il cliente quando passa da un software Pilot a un altro.
       </div>
     </Panel>
   );
