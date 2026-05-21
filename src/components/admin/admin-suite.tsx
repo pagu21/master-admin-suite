@@ -34,7 +34,6 @@ import {
   moneyIcon,
   programName,
   programs,
-  remainingProjects,
   sidebarItems,
   type AdminUser,
   type LicenseType,
@@ -672,9 +671,6 @@ function UsersSection({
                     <div key={`${user.id}-${access.program}`} className="rounded-xl bg-[#f8fafc] px-3 py-2 text-sm">
                       <span className="font-bold">{programName(access.program)}</span>
                       <span className="text-[#667085]"> · {access.role} · {licenseLabel(access.licenseType)}</span>
-                      {remainingProjects(access) !== null && (
-                        <span className="ml-2 font-semibold text-[#175cd3]">{remainingProjects(access)} progetti residui</span>
-                      )}
                     </div>
                   ))}
                 </div>
