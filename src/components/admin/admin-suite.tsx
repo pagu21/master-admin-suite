@@ -716,7 +716,6 @@ function ProgramsSection() {
             <p className="mt-2 min-h-16 text-sm leading-6 text-[#667085]">{program.description}</p>
             <div className="mt-5 grid gap-2 text-sm">
               <p><span className="font-semibold">Slug:</span> {program.slug}</p>
-              <p><span className="font-semibold">Login:</span> {program.loginUrl}</p>
               <Badge value={program.active ? "active" : "pending"} label={program.active ? "Attivo" : "Non attivo"} />
             </div>
           </div>
