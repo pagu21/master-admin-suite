@@ -468,7 +468,7 @@ export function AdminSuite() {
           {activeSection === "programs" && <ProgramsSection />}
           {activeSection === "licenses" && <LicensesSection users={users} onUpdateStatus={handleUpdateLicenseStatus} onEditUser={setEditingUser} />}
           {activeSection === "plans" && <PlansSection />}
-          {activeSection === "payments" && <PaymentsSection />}
+          {activeSection === "payments" && <PaymentsSection users={users} onEditUser={setEditingUser} />}
           {activeSection === "invoices" && <InvoicesSection />}
           {activeSection === "contacts" && <ContactsSection users={users} />}
           {activeSection === "settings" && <SettingsSection />}
@@ -864,7 +864,18 @@ function PlansSection() {
   );
 }
 
-function PaymentsSection() {
+function PaymentsSection({ users, onEditUser }: { users: AdminUser[]; onEditUser: (user: AdminUser) => void }) {
+  function findPaymentUser(paymentUser: string) {
+    const normalized = paymentUser.toLowerCase();
+    return users.find((user) => {
+      return (
+        user.name.toLowerCase() === normalized ||
+        user.company.toLowerCase() === normalized ||
+        user.email.toLowerCase() === normalized
+      );
+    });
+  }
+
   return (
     <Panel title="Pagamenti" action="Registra pagamento">
       <Table>
@@ -876,19 +887,36 @@ function PaymentsSection() {
             <Th>Metodo</Th>
             <Th>Data</Th>
             <Th>Stato</Th>
+            <Th>Azioni</Th>
           </tr>
         </thead>
         <tbody>
-          {demoPayments.map((payment) => (
-            <tr key={payment.id}>
-              <Td>{payment.user}</Td>
-              <Td>{programName(payment.program)}</Td>
-              <Td className="numeric font-bold">{euro(payment.amount)}</Td>
-              <Td>{payment.method}</Td>
-              <Td>{payment.paidAt}</Td>
-              <Td><Badge value={payment.status} label={payment.status} /></Td>
-            </tr>
-          ))}
+          {demoPayments.map((payment) => {
+            const user = findPaymentUser(payment.user);
+            return (
+              <tr key={payment.id}>
+                <Td>{payment.user}</Td>
+                <Td>{programName(payment.program)}</Td>
+                <Td className="numeric font-bold">{euro(payment.amount)}</Td>
+                <Td>{payment.method}</Td>
+                <Td>{payment.paidAt}</Td>
+                <Td><Badge value={payment.status} label={payment.status} /></Td>
+                <Td>
+                  {user ? (
+                    <button
+                      type="button"
+                      onClick={() => onEditUser(user)}
+                      className="rounded-xl border border-[#b2ccff] bg-white px-3 py-2 text-xs font-bold text-[#175cd3] hover:bg-[#eef4ff]"
+                    >
+                      Apri scheda
+                    </button>
+                  ) : (
+                    <span className="text-xs font-semibold text-[#98a2b3]">Cliente non collegato</span>
+                  )}
+                </Td>
+              </tr>
+            );
+          })}
         </tbody>
       </Table>
     </Panel>
