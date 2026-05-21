@@ -9,13 +9,16 @@ import {
   CalendarClock,
   CheckCircle2,
   CircleDollarSign,
+  Clipboard,
   KeyRound,
   LockKeyhole,
   LogOut,
+  Mail,
   MoreHorizontal,
   Plus,
   Eye,
   EyeOff,
+  Printer,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -36,6 +39,7 @@ import {
   programs,
   sidebarItems,
   type AdminUser,
+  type LicenseStatus,
   type LicenseType,
   type ProgramSlug
 } from "@/lib/master-data";
@@ -325,6 +329,22 @@ export function AdminSuite() {
     setActiveSection("users");
   }
 
+  async function handleUpdateLicenseStatus(user: AdminUser, access: AdminUser["accesses"][number], status: LicenseStatus) {
+    const response = await fetch(`/api/admin/users/${user.id}/programs/${access.program}/license-status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status })
+    });
+    const result = (await response.json().catch(() => null)) as { error?: string } | null;
+
+    if (!response.ok) {
+      window.alert(result?.error || "Stato licenza non aggiornato.");
+      return;
+    }
+
+    await reloadUsers();
+  }
+
   async function handleDeleteUser(user: AdminUser) {
     const confirmed = window.confirm(`Eliminare definitivamente ${user.name}?\n\nL'utente verra rimosso da Supabase Auth e dal Master Admin.`);
     if (!confirmed) return;
@@ -446,11 +466,11 @@ export function AdminSuite() {
             />
           )}
           {activeSection === "programs" && <ProgramsSection />}
-          {activeSection === "licenses" && <LicensesSection users={users} />}
+          {activeSection === "licenses" && <LicensesSection users={users} onUpdateStatus={handleUpdateLicenseStatus} onEditUser={setEditingUser} />}
           {activeSection === "plans" && <PlansSection />}
           {activeSection === "payments" && <PaymentsSection />}
           {activeSection === "invoices" && <InvoicesSection />}
-          {activeSection === "contacts" && <ContactsSection />}
+          {activeSection === "contacts" && <ContactsSection users={users} />}
           {activeSection === "settings" && <SettingsSection />}
           {activeSection === "audit" && <AuditSection />}
         </div>
@@ -602,6 +622,7 @@ function UsersSection({
   showEmails: boolean;
   setShowEmails: (value: boolean) => void;
 }) {
+  const [isPrintOpen, setIsPrintOpen] = useState(false);
   const usersWithoutPrograms = users.filter((user) => user.accesses.length === 0).length;
   const suspendedUsers = users.filter((user) => user.status === "suspended" || user.accesses.some((access) => access.licenseStatus === "suspended")).length;
   const neverLoggedUsers = users.filter((user) => user.lastAccess === "Mai").length;
@@ -613,7 +634,7 @@ function UsersSection({
         <AdminAlertCard label="Accessi sospesi" value={suspendedUsers} tone={suspendedUsers > 0 ? "red" : "green"} />
         <AdminAlertCard label="Mai entrati" value={neverLoggedUsers} tone={neverLoggedUsers > 0 ? "blue" : "green"} />
       </div>
-      <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_220px_220px_auto]">
+      <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_220px_220px_auto_auto]">
         <label className="relative">
           <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98a2b3]" />
           <input
@@ -652,6 +673,14 @@ function UsersSection({
         >
           {showEmails ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           {showEmails ? "Nascondi email" : "Mostra email"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsPrintOpen(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#b2ccff] bg-[#eef4ff] px-4 py-3 text-sm font-bold text-[#175cd3] hover:border-[#175cd3]"
+        >
+          <Printer className="h-4 w-4" />
+          Stampa clienti
         </button>
       </div>
       <Table>
@@ -710,6 +739,7 @@ function UsersSection({
           ))}
         </tbody>
       </Table>
+      {isPrintOpen && <ClientListPrintModal users={users} onClose={() => setIsPrintOpen(false)} />}
     </Panel>
   );
 }
@@ -734,9 +764,20 @@ function ProgramsSection() {
   );
 }
 
-function LicensesSection({ users }: { users: AdminUser[] }) {
+function LicensesSection({
+  users,
+  onUpdateStatus,
+  onEditUser
+}: {
+  users: AdminUser[];
+  onUpdateStatus: (user: AdminUser, access: AdminUser["accesses"][number], status: LicenseStatus) => void;
+  onEditUser: (user: AdminUser) => void;
+}) {
   return (
-    <Panel title="Gestione licenze" action="Nuova licenza">
+    <Panel title="Gestione licenze">
+      <div className="mb-4 rounded-2xl border border-[#b2ccff] bg-[#eef4ff] px-4 py-3 text-sm leading-6 text-[#123c69]">
+        Puoi cambiare rapidamente lo stato della licenza direttamente dalla tabella. Per modificare piano, date, ruolo o permessi apri la scheda utente.
+      </div>
       <Table>
         <thead>
           <tr>
@@ -746,6 +787,7 @@ function LicensesSection({ users }: { users: AdminUser[] }) {
             <Th>Validità</Th>
             <Th>Progetti</Th>
             <Th>Stato</Th>
+            <Th>Azioni</Th>
           </tr>
         </thead>
         <tbody>
@@ -761,7 +803,27 @@ function LicensesSection({ users }: { users: AdminUser[] }) {
                 <Td>
                   {access.projectsPurchased ? `${access.projectsUsed || 0}/${access.projectsPurchased} usati` : "Illimitati"}
                 </Td>
-                <Td><Badge value={access.licenseStatus} label={access.licenseStatus} /></Td>
+                <Td>
+                  <select
+                    value={access.licenseStatus}
+                    onChange={(event) => onUpdateStatus(user, access, event.target.value as LicenseStatus)}
+                    className={`rounded-xl border px-3 py-2 text-xs font-bold outline-none ${statusClasses[access.licenseStatus] || "border-[#d0d5dd] bg-white text-[#344054]"}`}
+                  >
+                    <option value="active">Attiva</option>
+                    <option value="pending">In attesa</option>
+                    <option value="expired">Scaduta</option>
+                    <option value="suspended">Sospesa</option>
+                  </select>
+                </Td>
+                <Td>
+                  <button
+                    type="button"
+                    onClick={() => onEditUser(user)}
+                    className="rounded-xl border border-[#b2ccff] bg-white px-3 py-2 text-xs font-bold text-[#175cd3] hover:bg-[#eef4ff]"
+                  >
+                    Apri scheda
+                  </button>
+                </Td>
               </tr>
             ))
           )}
@@ -847,13 +909,83 @@ function InvoicesSection() {
   );
 }
 
-function ContactsSection() {
+function ContactsSection({ users }: { users: AdminUser[] }) {
+  const [mailingFilter, setMailingFilter] = useState<"all" | "clients" | "contacts">("all");
+  const [copyMessage, setCopyMessage] = useState("");
+  const mailingEntries = [
+    ...users.map((user) => ({
+      id: `user-${user.id}`,
+      type: "Cliente",
+      name: user.name,
+      email: user.email,
+      company: user.company,
+      city: user.city,
+      program: user.accesses.map((access) => programName(access.program)).join(", ") || "-",
+      status: user.status === "active" ? "cliente" : "sospeso"
+    })),
+    ...demoContacts.map((contact) => ({
+      id: `contact-${contact.id}`,
+      type: "Contatto",
+      name: contact.name,
+      email: contact.email,
+      company: contact.company,
+      city: contact.city,
+      program: programName(contact.interestedProgram),
+      status: contact.status
+    }))
+  ].filter((entry) => {
+    if (mailingFilter === "clients") return entry.type === "Cliente";
+    if (mailingFilter === "contacts") return entry.type === "Contatto";
+    return true;
+  });
+
+  async function copyMailingList() {
+    const emails = Array.from(new Set(mailingEntries.map((entry) => entry.email).filter(Boolean)));
+    await navigator.clipboard.writeText(emails.join("; ")).catch(() => undefined);
+    setCopyMessage(`${emails.length} email copiate.`);
+    window.setTimeout(() => setCopyMessage(""), 2500);
+  }
+
   return (
     <Panel title="CRM / contatti" action="Nuovo contatto">
+      <div className="mb-5 grid gap-4 lg:grid-cols-[1fr_260px_auto]">
+        <div className="rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-5">
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#123c69] text-white">
+              <Mail className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold">Mailing list</h3>
+              <p className="mt-1 text-sm leading-6 text-[#667085]">
+                Usa questa lista per comunicazioni commerciali, rinnovi, aggiornamenti prodotto e contatti non ancora clienti.
+              </p>
+            </div>
+          </div>
+        </div>
+        <select
+          value={mailingFilter}
+          onChange={(event) => setMailingFilter(event.target.value as "all" | "clients" | "contacts")}
+          className="rounded-2xl border border-[#d0d5dd] bg-white px-4 py-3 text-sm font-semibold"
+        >
+          <option value="all">Clienti e contatti</option>
+          <option value="clients">Solo clienti</option>
+          <option value="contacts">Solo non clienti</option>
+        </select>
+        <button
+          type="button"
+          onClick={copyMailingList}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#123c69] px-5 py-3 text-sm font-bold text-white"
+        >
+          <Clipboard className="h-4 w-4" />
+          Copia email
+        </button>
+      </div>
+      {copyMessage && <p className="mb-4 rounded-2xl bg-[#ecfdf3] px-4 py-3 text-sm font-bold text-[#067647]">{copyMessage}</p>}
       <Table>
         <thead>
           <tr>
-            <Th>Contatto</Th>
+            <Th>Nome</Th>
+            <Th>Tipo</Th>
             <Th>Azienda</Th>
             <Th>Città</Th>
             <Th>Programma</Th>
@@ -861,15 +993,16 @@ function ContactsSection() {
           </tr>
         </thead>
         <tbody>
-          {demoContacts.map((contact) => (
+          {mailingEntries.map((contact) => (
             <tr key={contact.id}>
               <Td>
                 <p className="font-bold">{contact.name}</p>
                 <p className="text-sm text-[#667085]">{contact.email}</p>
               </Td>
+              <Td>{contact.type}</Td>
               <Td>{contact.company}</Td>
               <Td>{contact.city}</Td>
-              <Td>{programName(contact.interestedProgram)}</Td>
+              <Td>{contact.program}</Td>
               <Td><Badge value={contact.status} label={contact.status.replace("_", " ")} /></Td>
             </tr>
           ))}
@@ -995,6 +1128,16 @@ function maskEmail(email: string) {
   return `${visible}${"*".repeat(Math.max(3, name.length - visible.length))}@${domain}`;
 }
 
+function licenseStatusLabel(status: LicenseStatus) {
+  const labels: Record<LicenseStatus, string> = {
+    active: "Attiva",
+    pending: "In attesa",
+    expired: "Scaduta",
+    suspended: "Sospesa"
+  };
+  return labels[status];
+}
+
 function IconButton({ label, icon: Icon, onClick }: { label: string; icon: ComponentType<{ className?: string }>; onClick?: () => void }) {
   return (
     <button
@@ -1080,10 +1223,87 @@ function UserDetailsModal({ user, onClose }: { user: AdminUser; onClose: () => v
   );
 }
 
-function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+function ClientListPrintModal({ users, onClose }: { users: AdminUser[]; onClose: () => void }) {
+  return (
+    <ModalShell title="Anteprima stampa clienti" onClose={onClose} wide>
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .client-print-area,
+          .client-print-area * {
+            visibility: visible;
+          }
+          .client-print-area {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            background: white;
+            padding: 18mm;
+          }
+          .client-print-controls {
+            display: none !important;
+          }
+        }
+      `}</style>
+      <div className="client-print-area rounded-3xl border border-[#d9e2ef] bg-white p-5">
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-4 border-b border-[#d9e2ef] pb-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#175cd3]">Master Admin Suite</p>
+            <h3 className="mt-1 text-2xl font-black text-[#101828]">Elenco clienti</h3>
+            <p className="mt-1 text-sm text-[#667085]">Stampa sintetica con dati principali, programmi, licenze e ultimo accesso.</p>
+          </div>
+          <p className="numeric text-sm font-bold text-[#516079]">{new Date().toLocaleDateString("it-IT")}</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] border-collapse text-left text-xs">
+            <thead>
+              <tr>
+                <th className="border-b border-[#d9e2ef] bg-[#f8fafc] px-3 py-2 font-bold uppercase text-[#516079]">Cliente</th>
+                <th className="border-b border-[#d9e2ef] bg-[#f8fafc] px-3 py-2 font-bold uppercase text-[#516079]">Email</th>
+                <th className="border-b border-[#d9e2ef] bg-[#f8fafc] px-3 py-2 font-bold uppercase text-[#516079]">Azienda / città</th>
+                <th className="border-b border-[#d9e2ef] bg-[#f8fafc] px-3 py-2 font-bold uppercase text-[#516079]">Programmi</th>
+                <th className="border-b border-[#d9e2ef] bg-[#f8fafc] px-3 py-2 font-bold uppercase text-[#516079]">Stato</th>
+                <th className="border-b border-[#d9e2ef] bg-[#f8fafc] px-3 py-2 font-bold uppercase text-[#516079]">Ultimo accesso</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td className="border-b border-[#edf2f7] px-3 py-3 font-bold">{user.name}</td>
+                  <td className="border-b border-[#edf2f7] px-3 py-3">{user.email}</td>
+                  <td className="border-b border-[#edf2f7] px-3 py-3">{user.company} · {user.city}</td>
+                  <td className="border-b border-[#edf2f7] px-3 py-3">
+                    {user.accesses.length
+                      ? user.accesses.map((access) => `${programName(access.program)}: ${access.role}, ${licenseLabel(access.licenseType)}, ${licenseStatusLabel(access.licenseStatus)}`).join(" | ")
+                      : "Nessun programma assegnato"}
+                  </td>
+                  <td className="border-b border-[#edf2f7] px-3 py-3">{user.status === "active" ? "Attivo" : "Sospeso"}</td>
+                  <td className="border-b border-[#edf2f7] px-3 py-3">{user.lastAccess}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="client-print-controls mt-5 flex flex-wrap justify-end gap-3">
+        <button type="button" onClick={onClose} className="rounded-2xl border border-[#d0d5dd] px-5 py-3 font-bold text-[#344054]">
+          Chiudi
+        </button>
+        <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-2xl bg-[#123c69] px-5 py-3 font-bold text-white">
+          <Printer className="h-4 w-4" />
+          Stampa
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function ModalShell({ title, onClose, children, wide = false }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[#101828]/45 px-4 py-8 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[28px] bg-white p-6 soft-shadow">
+      <div className={`max-h-[90vh] w-full overflow-y-auto rounded-[28px] bg-white p-6 soft-shadow ${wide ? "max-w-6xl" : "max-w-2xl"}`}>
         <div className="mb-5 flex items-center justify-between gap-4">
           <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
           <button onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full bg-[#f2f4f7] text-[#516079]">
