@@ -44,7 +44,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ use
   } = await supabase.auth.getUser();
 
   if (!currentUser) {
-    return NextResponse.json({ error: "Sessione admin non valida." }, { status: 401 });
+    return NextResponse.json({ error: "Sessione master non valida." }, { status: 401 });
   }
 
   if (currentUser.id === userId) {
@@ -70,7 +70,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ use
 
   const { data: targetProfile } = await admin.from("profiles").select("email,is_admin,is_super_admin").eq("id", userId).maybeSingle();
   if (targetProfile?.is_admin || targetProfile?.is_super_admin) {
-    return NextResponse.json({ error: "Non puoi eliminare un utente master/admin." }, { status: 400 });
+    return NextResponse.json({ error: "Non puoi eliminare un utente master." }, { status: 400 });
   }
 
   await admin.from("audit_logs").insert({
@@ -116,7 +116,7 @@ export async function PUT(request: Request, context: { params: Promise<{ userId:
   } = await supabase.auth.getUser();
 
   if (!currentUser) {
-    return NextResponse.json({ error: "Sessione admin non valida." }, { status: 401 });
+    return NextResponse.json({ error: "Sessione master non valida." }, { status: 401 });
   }
 
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {

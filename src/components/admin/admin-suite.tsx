@@ -708,7 +708,7 @@ function UsersSection({
                   {user.accesses.map((access) => (
                     <div key={`${user.id}-${access.program}`} className="rounded-xl bg-[#f8fafc] px-3 py-2 text-sm">
                       <span className="font-bold">{programName(access.program)}</span>
-                      <span className="text-[#667085]"> · {access.role} · {licenseLabel(access.licenseType)}</span>
+                      <span className="text-[#667085]"> · {roleLabel(access.role)} · {licenseLabel(access.licenseType)}</span>
                     </div>
                   ))}
                 </div>
@@ -1042,7 +1042,7 @@ function ContactsSection({ users }: { users: AdminUser[] }) {
 
 function SettingsSection() {
   const settings = [
-    { title: "Supabase Auth", text: "Accesso amministrativo protetto con controllo ruolo admin.", icon: LockKeyhole },
+    { title: "Supabase Auth", text: "Accesso protetto con controllo ruolo master.", icon: LockKeyhole },
     { title: "Stripe futuro", text: "Database e pagamenti sono già predisposti per collegare Stripe.", icon: CircleDollarSign },
     { title: "Regole progetto", text: "Launch Pilot può bloccare nuovi progetti quando il pacchetto è esaurito.", icon: CheckCircle2 },
     { title: "Scadenze", text: "Licenze a tempo controllate con data inizio, data fine e stato.", icon: CalendarClock }
@@ -1166,6 +1166,16 @@ function licenseStatusLabel(status: LicenseStatus) {
   return labels[status];
 }
 
+function roleLabel(role: AdminUser["accesses"][number]["role"]) {
+  const labels: Record<AdminUser["accesses"][number]["role"], string> = {
+    admin: "Master",
+    consulente: "Consulente",
+    ristoratore: "Ristoratore",
+    utente: "Utente"
+  };
+  return labels[role];
+}
+
 function IconButton({ label, icon: Icon, onClick }: { label: string; icon: ComponentType<{ className?: string }>; onClick?: () => void }) {
   return (
     <button
@@ -1199,7 +1209,7 @@ function CredentialsModal({ user, onClose, onResetPassword }: { user: AdminUser;
           {user.accesses.map((access) => (
             <div key={`${user.id}-${access.program}`} className="rounded-2xl border border-[#edf2f7] bg-white p-4">
               <p className="font-bold">{programName(access.program)}</p>
-              <p className="mt-1 text-sm text-[#667085]">{access.role} · {licenseLabel(access.licenseType)} · {access.licenseStatus}</p>
+              <p className="mt-1 text-sm text-[#667085]">{roleLabel(access.role)} · {licenseLabel(access.licenseType)} · {licenseStatusLabel(access.licenseStatus)}</p>
             </div>
           ))}
         </div>
@@ -1237,7 +1247,7 @@ function UserDetailsModal({ user, onClose }: { user: AdminUser; onClose: () => v
                 <Badge value={access.licenseStatus} label={access.licenseStatus} />
               </div>
               <div className="mt-3 grid gap-2 text-sm text-[#516079] md:grid-cols-2">
-                <p><span className="font-bold text-[#344054]">Ruolo:</span> {access.role}</p>
+                <p><span className="font-bold text-[#344054]">Ruolo:</span> {roleLabel(access.role)}</p>
                 <p><span className="font-bold text-[#344054]">Licenza:</span> {licenseLabel(access.licenseType)}</p>
                 <p><span className="font-bold text-[#344054]">Inizio:</span> {access.startDate || "-"}</p>
                 <p><span className="font-bold text-[#344054]">Fine:</span> {access.endDate || "Nessuna scadenza"}</p>
@@ -1304,7 +1314,7 @@ function ClientListPrintModal({ users, onClose }: { users: AdminUser[]; onClose:
                   <td className="border-b border-[#edf2f7] px-3 py-3">{user.company} · {user.city}</td>
                   <td className="border-b border-[#edf2f7] px-3 py-3">
                     {user.accesses.length
-                      ? user.accesses.map((access) => `${programName(access.program)}: ${access.role}, ${licenseLabel(access.licenseType)}, ${licenseStatusLabel(access.licenseStatus)}`).join(" | ")
+                      ? user.accesses.map((access) => `${programName(access.program)}: ${roleLabel(access.role)}, ${licenseLabel(access.licenseType)}, ${licenseStatusLabel(access.licenseStatus)}`).join(" | ")
                       : "Nessun programma assegnato"}
                   </td>
                   <td className="border-b border-[#edf2f7] px-3 py-3">{user.status === "active" ? "Attivo" : "Sospeso"}</td>
@@ -1590,12 +1600,12 @@ function CreateUserModal({
         ? [
             { value: "ristoratore", label: "Ristoratore" },
             { value: "consulente", label: "Consulente" },
-            { value: "admin", label: "Admin" }
+            { value: "admin", label: "Master" }
           ]
         : [
             { value: "utente", label: "Utente" },
             { value: "consulente", label: "Operatore" },
-            { value: "admin", label: "Admin" }
+            { value: "admin", label: "Master" }
           ];
 
   function update<K extends keyof CreateUserPayload>(key: K, value: CreateUserPayload[K]) {
@@ -1778,7 +1788,7 @@ function CreateUserModal({
                 </button>
               </div>
               <div className="mt-3 rounded-2xl border border-[#d9e2ef] bg-[#f8fafc] px-4 py-3 text-sm leading-6 text-[#516079]">
-                Il master secondario gestisce gli utenti dal Master Admin, può eliminare clienti non master e riceve accesso admin a Margin Pilot, Launch Pilot e Standard Pilot.
+                Il master secondario gestisce gli utenti dal pannello centrale, può eliminare clienti non master e riceve profilo Master su Margin Pilot, Launch Pilot e Standard Pilot.
               </div>
             </div>
             {form.assignments.map((assignment) => {

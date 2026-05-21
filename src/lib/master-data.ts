@@ -187,7 +187,7 @@ export const demoUsers: AdminUser[] = [
   {
     id: "u-003",
     name: "Studio Verdi",
-    email: "admin@studioverdi.it",
+    email: "master@studioverdi.it",
     company: "Studio Verdi",
     city: "Milano",
     status: "suspended",
@@ -224,8 +224,8 @@ export const demoContacts: Contact[] = [
 ];
 
 export const demoAuditLogs: AuditLog[] = [
-  { id: "log-1", event: "Licenza Launch Pilot aggiornata", actor: "admin@master.local", target: "Mario Rossi", createdAt: "2026-05-20 10:05" },
-  { id: "log-2", event: "Nuovo contatto CRM inserito", actor: "admin@master.local", target: "Elena Neri", createdAt: "2026-05-20 09:58" },
+  { id: "log-1", event: "Licenza Launch Pilot aggiornata", actor: "master@pilot.local", target: "Mario Rossi", createdAt: "2026-05-20 10:05" },
+  { id: "log-2", event: "Nuovo contatto CRM inserito", actor: "master@pilot.local", target: "Elena Neri", createdAt: "2026-05-20 09:58" },
   { id: "log-3", event: "Accesso programma verificato", actor: "system", target: "Laura Bianchi", createdAt: "2026-05-19 18:15" }
 ];
 

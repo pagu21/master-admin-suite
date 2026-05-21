@@ -103,7 +103,7 @@ async function requireAdmin() {
   } = await supabase.auth.getUser();
 
   if (!currentUser) {
-    return { error: NextResponse.json({ error: "Sessione admin non valida." }, { status: 401 }) };
+    return { error: NextResponse.json({ error: "Sessione master non valida." }, { status: 401 }) };
   }
 
   const admin = createAdminClient();
@@ -117,7 +117,7 @@ async function requireAdmin() {
     return {
       error: NextResponse.json(
         {
-          error: `Accesso non autorizzato. Utente sessione: ${currentUser.email ?? currentUser.id}. Profilo admin trovato: ${currentProfile?.email ?? "no"}.`
+          error: `Accesso non autorizzato. Utente sessione: ${currentUser.email ?? currentUser.id}. Profilo master trovato: ${currentProfile?.email ?? "no"}.`
         },
         { status: 403 }
       )

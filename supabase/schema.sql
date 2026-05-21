@@ -422,7 +422,7 @@ select p.id, role_code, role_name, role_description
 from public.programs p
 cross join (
   values
-    ('admin', 'Admin', 'Amministrazione programma'),
+    ('admin', 'Master', 'Gestione completa del programma'),
     ('consulente', 'Consulente', 'Gestione più clienti e progetti'),
     ('ristoratore', 'Ristoratore', 'Gestione dei propri progetti'),
     ('utente', 'Utente', 'Accesso operativo standard')
