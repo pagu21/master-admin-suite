@@ -966,10 +966,110 @@ function LicensesSection({
   onUpdateStatus: (user: AdminUser, access: AdminUser["accesses"][number], status: LicenseStatus) => void;
   onEditUser: (user: AdminUser) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [programFilter, setProgramFilter] = useState<"all" | ProgramSlug>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | LicenseStatus>("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | LicenseType>("all");
+
+  const licenseRows = users.flatMap((user) =>
+    user.accesses.map((access) => ({
+      user,
+      access
+    }))
+  );
+
+  const filteredLicenseRows = licenseRows.filter(({ user, access }) => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const matchesQuery =
+      !normalizedQuery ||
+      user.name.toLowerCase().includes(normalizedQuery) ||
+      user.email.toLowerCase().includes(normalizedQuery) ||
+      user.company.toLowerCase().includes(normalizedQuery);
+    const matchesProgram = programFilter === "all" || access.program === programFilter;
+    const matchesStatus = statusFilter === "all" || access.licenseStatus === statusFilter;
+    const matchesType = typeFilter === "all" || access.licenseType === typeFilter;
+
+    return matchesQuery && matchesProgram && matchesStatus && matchesType;
+  });
+
+  function resetFilters() {
+    setQuery("");
+    setProgramFilter("all");
+    setStatusFilter("all");
+    setTypeFilter("all");
+  }
+
   return (
     <Panel title="Gestione licenze">
       <div className="mb-4 rounded-2xl border border-[#b2ccff] bg-[#eef4ff] px-4 py-3 text-sm leading-6 text-[#123c69]">
         Puoi cambiare rapidamente lo stato della licenza direttamente dalla tabella. Per modificare piano, date, ruolo o permessi apri la scheda utente.
+      </div>
+      <div className="mb-4 grid gap-3 rounded-3xl border border-[#d9e2ef] bg-white p-4 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
+        <label className="block">
+          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#667085]">Cerca cliente</span>
+          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[#d9e2ef] bg-[#fbfcfe] px-3">
+            <Search className="h-4 w-4 text-[#98a2b3]" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Nome, email o azienda"
+              className="h-11 w-full bg-transparent text-sm font-semibold text-[#101828] outline-none placeholder:text-[#98a2b3]"
+            />
+          </div>
+        </label>
+        <FilterSelect
+          label="Programma"
+          value={programFilter}
+          onChange={(value) => setProgramFilter(value as "all" | ProgramSlug)}
+          options={[
+            { value: "all", label: "Tutti i programmi" },
+            ...programs.map((program) => ({ value: program.slug, label: program.name }))
+          ]}
+        />
+        <FilterSelect
+          label="Stato"
+          value={statusFilter}
+          onChange={(value) => setStatusFilter(value as "all" | LicenseStatus)}
+          options={[
+            { value: "all", label: "Tutti gli stati" },
+            { value: "active", label: "Attive" },
+            { value: "pending", label: "In attesa" },
+            { value: "expired", label: "Scadute" },
+            { value: "suspended", label: "Sospese" }
+          ]}
+        />
+        <FilterSelect
+          label="Tipo licenza"
+          value={typeFilter}
+          onChange={(value) => setTypeFilter(value as "all" | LicenseType)}
+          options={[
+            { value: "all", label: "Tutti i tipi" },
+            { value: "monthly_subscription", label: licenseLabel("monthly_subscription") },
+            { value: "annual_subscription", label: licenseLabel("annual_subscription") },
+            { value: "project_pack_1", label: licenseLabel("project_pack_1") },
+            { value: "project_pack_3", label: licenseLabel("project_pack_3") },
+            { value: "project_pack_5", label: licenseLabel("project_pack_5") },
+            { value: "free", label: licenseLabel("free") },
+            { value: "suspended", label: licenseLabel("suspended") }
+          ]}
+        />
+        <div className="flex flex-col justify-end gap-2">
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="h-11 rounded-2xl border border-[#d9e2ef] bg-white px-4 text-sm font-bold text-[#516079] hover:border-[#175cd3] hover:text-[#175cd3]"
+          >
+            Azzera
+          </button>
+        </div>
+      </div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-[#667085]">
+        <span>
+          Licenze visualizzate: <span className="font-black text-[#101828]">{filteredLicenseRows.length}</span> su {licenseRows.length}
+        </span>
+        {(query || programFilter !== "all" || statusFilter !== "all" || typeFilter !== "all") && (
+          <span className="rounded-full bg-[#fffaeb] px-3 py-1 font-bold text-[#b54708]">Filtro attivo</span>
+        )}
       </div>
       <Table>
         <thead>
@@ -984,8 +1084,8 @@ function LicensesSection({
           </tr>
         </thead>
         <tbody>
-          {users.flatMap((user) =>
-            user.accesses.map((access) => (
+          {filteredLicenseRows.length ? (
+            filteredLicenseRows.map(({ user, access }) => (
               <tr key={`${user.id}-${access.program}`}>
                 <Td>{user.name}</Td>
                 <Td>{programName(access.program)}</Td>
@@ -1019,6 +1119,14 @@ function LicensesSection({
                 </Td>
               </tr>
             ))
+          ) : (
+            <tr>
+              <Td colSpan={7}>
+                <div className="rounded-2xl border border-[#fedf89] bg-[#fffaeb] px-4 py-3 text-sm font-semibold text-[#b54708]">
+                  Nessuna licenza trovata con i filtri selezionati.
+                </div>
+              </Td>
+            </tr>
           )}
         </tbody>
       </Table>
@@ -1302,6 +1410,35 @@ function Panel({ title, action, onAction, children }: { title: string; action?: 
   );
 }
 
+function FilterSelect({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#667085]">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 h-11 w-full rounded-2xl border border-[#d9e2ef] bg-[#fbfcfe] px-3 text-sm font-bold text-[#101828] outline-none hover:border-[#b2ccff] focus:border-[#175cd3]"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function Table({ children }: { children: ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-[#d9e2ef]">
@@ -1314,8 +1451,8 @@ function Th({ children }: { children: ReactNode }) {
   return <th className="bg-[#f8fafc] px-4 py-3 text-xs font-bold uppercase tracking-[0.08em] text-[#516079]">{children}</th>;
 }
 
-function Td({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <td className={`border-t border-[#edf2f7] px-4 py-4 align-top ${className}`}>{children}</td>;
+function Td({ children, className = "", colSpan }: { children: ReactNode; className?: string; colSpan?: number }) {
+  return <td colSpan={colSpan} className={`border-t border-[#edf2f7] px-4 py-4 align-top ${className}`}>{children}</td>;
 }
 
 function Badge({ value, label }: { value: string; label: string }) {
