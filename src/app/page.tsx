@@ -37,11 +37,11 @@ export default function Home() {
               Pannello centrale indipendente
             </p>
             <h2 className="max-w-3xl text-5xl font-bold leading-[1.02] tracking-tight text-[#07111f] md:text-7xl">
-              Gestione unica per tutti i software Pilot.
+              Tutti i tuoi software Pilot, governati da un solo punto.
             </h2>
             <p className="mt-6 max-w-2xl text-xl leading-8 text-[#516079]">
-              Una suite amministrativa separata per utenti, licenze, ruoli, piani,
-              pagamenti, fatturazione, CRM e audit log.
+              Crea clienti, assegna programmi e controlla licenze e accessi con un pannello semplice,
+              ordinato e pronto a far crescere l&apos;intero ecosistema.
             </p>
           </div>
 
