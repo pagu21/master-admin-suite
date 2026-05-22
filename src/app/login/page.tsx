@@ -6,6 +6,10 @@ import type { FormEvent } from "react";
 import { ArrowLeft, LockKeyhole, X } from "lucide-react";
 import { createSupabaseBrowserClient, hasSupabaseBrowserConfig } from "@/lib/supabase/client";
 
+function appBaseUrl() {
+  return (process.env.NEXT_PUBLIC_MASTER_ADMIN_URL || window.location.origin).replace(/\/$/, "");
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,7 +53,7 @@ export default function LoginPage() {
     setLoading(true);
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+      redirectTo: `${appBaseUrl()}/reset-password`
     });
     setLoading(false);
 

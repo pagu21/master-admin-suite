@@ -63,7 +63,7 @@ export async function POST(request: Request, context: { params: Promise<{ userId
     return NextResponse.json({ error: "Utente non trovato." }, { status: 404 });
   }
 
-  const origin = new URL(request.url).origin;
+  const origin = (process.env.NEXT_PUBLIC_MASTER_ADMIN_URL || new URL(request.url).origin).replace(/\/$/, "");
   const publicClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
   const { error } = await publicClient.auth.resetPasswordForEmail(profile.email, {
     redirectTo: `${origin}/reset-password`
