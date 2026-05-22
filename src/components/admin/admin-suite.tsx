@@ -567,24 +567,7 @@ function DashboardSection() {
         })}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Panel title="Programmi collegati" action="Gestisci programmi">
-          <div className="grid gap-3">
-            {programs.map((program) => (
-              <div key={program.slug} className="flex items-center justify-between rounded-2xl border border-[#edf2f7] p-4">
-                <div className="flex items-center gap-3">
-                  <div className={`h-11 w-11 rounded-2xl bg-gradient-to-br ${program.accent}`} />
-                  <div>
-                    <p className="font-bold">{program.name}</p>
-                    <p className="text-sm text-[#667085]">{program.description}</p>
-                  </div>
-                </div>
-                <Badge value={program.active ? "active" : "pending"} label={program.active ? "Attivo" : "In preparazione"} />
-              </div>
-            ))}
-          </div>
-        </Panel>
-
+      <div className="grid gap-6">
         <Panel title="Ultime attività" action="Audit completo">
           <div className="grid gap-3">
             {demoAuditLogs.map((log) => (
@@ -766,6 +749,13 @@ function UsersSection({
 function ProgramsSection() {
   return (
     <Panel title="Gestione programmi" action="Aggiungi programma">
+      <div className="mb-5 rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-5">
+        <p className="text-sm font-bold uppercase tracking-[0.14em] text-[#175cd3]">Ecosistema Pilot</p>
+        <h3 className="mt-2 text-2xl font-bold text-[#101828]">Tutti i programmi gestiti dal Master Admin</h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#667085]">
+          Da questa pagina controlli stato, descrizione e collegamento operativo dei software. La dashboard resta dedicata agli indicatori generali.
+        </p>
+      </div>
       <div className="grid gap-4 md:grid-cols-3">
         {programs.map((program) => (
           <div key={program.slug} className="rounded-[24px] border border-[#d9e2ef] bg-white p-5">
@@ -774,6 +764,7 @@ function ProgramsSection() {
             <p className="mt-2 min-h-16 text-sm leading-6 text-[#667085]">{program.description}</p>
             <div className="mt-5 grid gap-2 text-sm">
               <p><span className="font-semibold">Slug:</span> {program.slug}</p>
+              <p className="break-all"><span className="font-semibold">Accesso:</span> {program.loginUrl}</p>
               <Badge value={program.active ? "active" : "pending"} label={program.active ? "Attivo" : "Non attivo"} />
             </div>
           </div>
