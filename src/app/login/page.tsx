@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { ArrowLeft, LockKeyhole } from "lucide-react";
+import { ArrowLeft, LockKeyhole, X } from "lucide-react";
 import { createSupabaseBrowserClient, hasSupabaseBrowserConfig } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -49,7 +49,7 @@ export default function LoginPage() {
     setLoading(true);
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`
+      redirectTo: `${window.location.origin}/reset-password`
     });
     setLoading(false);
 
@@ -109,7 +109,15 @@ export default function LoginPage() {
             Non ricordi email o password?
           </button>
           {recoveryOpen && (
-            <div className="rounded-2xl border border-[#d9e2ef] bg-[#f8fafc] p-4 text-sm leading-6 text-[#516079]">
+            <div className="relative rounded-2xl border border-[#d9e2ef] bg-[#f8fafc] p-4 pr-12 text-sm leading-6 text-[#516079]">
+              <button
+                type="button"
+                aria-label="Chiudi recupero password"
+                onClick={() => setRecoveryOpen(false)}
+                className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-white text-[#344054] ring-1 ring-[#d0d5dd] transition hover:bg-[#eef4ff] hover:text-[#175cd3]"
+              >
+                <X className="h-4 w-4" />
+              </button>
               <p>
                 Se ricordi l&apos;email, puoi ricevere un link per impostare una nuova password.
               </p>

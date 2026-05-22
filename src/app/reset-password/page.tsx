@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowLeft, LockKeyhole } from "lucide-react";
 import { createSupabaseBrowserClient, hasSupabaseBrowserConfig } from "@/lib/supabase/client";
@@ -10,7 +10,42 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [ready, setReady] = useState(false);
+  const [hasRecoverySession, setHasRecoverySession] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function prepareRecoverySession() {
+      if (!hasSupabaseBrowserConfig()) {
+        setMessage("Configurazione Supabase non presente.");
+        setReady(true);
+        return;
+      }
+
+      const supabase = createSupabaseBrowserClient();
+      const code = new URLSearchParams(window.location.search).get("code");
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          setMessage("Link di recupero non valido o scaduto. Richiedi una nuova email di recupero.");
+          setReady(true);
+          return;
+        }
+        window.history.replaceState(null, "", "/reset-password");
+      }
+
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        setMessage("Apri questa pagina dal link ricevuto via email. Se il link è scaduto, richiedi un nuovo recupero password.");
+      } else {
+        setHasRecoverySession(true);
+      }
+      setReady(true);
+    }
+
+    prepareRecoverySession();
+  }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -84,8 +119,8 @@ export default function ResetPasswordPage() {
             />
           </label>
           {message && <p className="rounded-2xl bg-[#eef4ff] px-4 py-3 text-sm font-medium text-[#175cd3]">{message}</p>}
-          <button className="rounded-2xl bg-[#123c69] px-5 py-3 font-bold text-white transition hover:bg-[#175cd3] disabled:opacity-60" disabled={loading}>
-            {loading ? "Aggiornamento..." : "Aggiorna password"}
+          <button className="rounded-2xl bg-[#123c69] px-5 py-3 font-bold text-white transition hover:bg-[#175cd3] disabled:opacity-60" disabled={loading || !ready || !hasRecoverySession}>
+            {loading ? "Aggiornamento..." : ready ? "Aggiorna password" : "Verifica link..."}
           </button>
         </form>
       </div>

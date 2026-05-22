@@ -66,7 +66,7 @@ export async function POST(request: Request, context: { params: Promise<{ userId
   const origin = new URL(request.url).origin;
   const publicClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
   const { error } = await publicClient.auth.resetPasswordForEmail(profile.email, {
-    redirectTo: `${origin}/auth/callback?next=/reset-password`
+    redirectTo: `${origin}/reset-password`
   });
 
   if (error) {
