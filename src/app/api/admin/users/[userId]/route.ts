@@ -69,8 +69,12 @@ export async function DELETE(_request: Request, context: { params: Promise<{ use
   }
 
   const { data: targetProfile } = await admin.from("profiles").select("email,is_admin,is_super_admin").eq("id", userId).maybeSingle();
-  if (targetProfile?.is_admin || targetProfile?.is_super_admin) {
-    return NextResponse.json({ error: "Non puoi eliminare un utente master." }, { status: 400 });
+  if (targetProfile?.is_super_admin) {
+    return NextResponse.json({ error: "Non puoi eliminare un Super Master." }, { status: 400 });
+  }
+
+  if (targetProfile?.is_admin && !currentProfile.is_super_admin) {
+    return NextResponse.json({ error: "Solo il Super Master può eliminare un Master Secondario." }, { status: 403 });
   }
 
   await admin.from("audit_logs").insert({
