@@ -256,6 +256,8 @@ export function AdminSuite() {
   const [credentialsUser, setCredentialsUser] = useState<AdminUser | null>(null);
   const [detailsUser, setDetailsUser] = useState<AdminUser | null>(null);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [resetPasswordUser, setResetPasswordUser] = useState<AdminUser | null>(null);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -371,16 +373,23 @@ export function AdminSuite() {
     setUsers((current) => current.filter((item) => item.id !== user.id));
   }
 
-  async function handleResetPassword(user: AdminUser) {
-    const confirmed = window.confirm(`Inviare a ${user.email} una email per reimpostare la password?`);
-    if (!confirmed) return;
+  function requestResetPassword(user: AdminUser) {
+    setResetPasswordUser(user);
+  }
 
-    const response = await fetch(`/api/admin/users/${user.id}/reset-password`, { method: "POST" });
+  async function confirmResetPassword() {
+    if (!resetPasswordUser) return;
+
+    setResetPasswordLoading(true);
+    const response = await fetch(`/api/admin/users/${resetPasswordUser.id}/reset-password`, { method: "POST" });
     const result = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+    setResetPasswordLoading(false);
+
     if (!response.ok) {
       window.alert(result?.error || "Email di recupero non inviata.");
       return;
     }
+    setResetPasswordUser(null);
     window.alert(result?.message || "Email di recupero password inviata.");
   }
 
@@ -470,7 +479,7 @@ export function AdminSuite() {
               setLicenseFilter={setLicenseFilter}
               onCreateUser={() => setIsCreateUserOpen(true)}
               onDeleteUser={handleDeleteUser}
-              onResetPassword={handleResetPassword}
+              onResetPassword={requestResetPassword}
               onShowCredentials={setCredentialsUser}
               onShowDetails={setDetailsUser}
               onEditUser={setEditingUser}
@@ -500,8 +509,18 @@ export function AdminSuite() {
           onSubmit={handleCreateUser}
         />
       )}
-      {credentialsUser && <CredentialsModal user={credentialsUser} onClose={() => setCredentialsUser(null)} onResetPassword={handleResetPassword} />}
+      {credentialsUser && <CredentialsModal user={credentialsUser} onClose={() => setCredentialsUser(null)} onResetPassword={requestResetPassword} />}
       {detailsUser && <UserDetailsModal user={detailsUser} onClose={() => setDetailsUser(null)} />}
+      {resetPasswordUser && (
+        <ResetPasswordConfirmModal
+          user={resetPasswordUser}
+          loading={resetPasswordLoading}
+          onClose={() => {
+            if (!resetPasswordLoading) setResetPasswordUser(null);
+          }}
+          onConfirm={confirmResetPassword}
+        />
+      )}
       {editingUser && (
         <CreateUserModal
           message={createUserMessage}
@@ -1519,6 +1538,61 @@ function IconButton({ label, icon: Icon, onClick }: { label: string; icon: Compo
     >
       <Icon className="h-4 w-4" />
     </button>
+  );
+}
+
+function ResetPasswordConfirmModal({
+  user,
+  loading,
+  onClose,
+  onConfirm
+}: {
+  user: AdminUser;
+  loading: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <ModalShell title="Conferma reset password" onClose={onClose}>
+      <div className="grid gap-5">
+        <div className="rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-5">
+          <div className="flex items-start gap-4">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#eef4ff] text-[#175cd3]">
+              <RotateCcw className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-[#101828]">Inviare email di recupero?</h3>
+              <p className="mt-2 text-sm leading-6 text-[#667085]">
+                Il cliente riceverà un link sicuro per impostare una nuova password. La password attuale non verrà mostrata né inviata.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 rounded-2xl bg-white p-4 ring-1 ring-[#d9e2ef]">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#667085]">Destinatario</p>
+            <p className="mt-1 break-all text-lg font-bold text-[#101828]">{user.email}</p>
+            <p className="mt-1 text-sm text-[#667085]">{user.name}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="rounded-2xl border border-[#d0d5dd] px-5 py-3 font-bold text-[#344054] disabled:opacity-60"
+          >
+            Annulla
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="rounded-2xl bg-[#123c69] px-5 py-3 font-bold text-white transition hover:bg-[#175cd3] disabled:opacity-60"
+          >
+            {loading ? "Invio in corso..." : "Conferma invio"}
+          </button>
+        </div>
+      </div>
+    </ModalShell>
   );
 }
 
