@@ -117,9 +117,9 @@ export const programs: Program[] = [
   },
   {
     slug: "standard-pilot",
-    name: "Standard Pilot",
+    name: "Quality Pilot",
     description: "Standard operativi, procedure e controllo qualità per la ristorazione.",
-    loginUrl: "https://standardpilot.vercel.app/login",
+    loginUrl: "https://qualitypilot.vercel.app/login",
     accent: "from-amber-500 to-orange-400",
     active: false
   }
@@ -211,7 +211,7 @@ export const demoPlans: Plan[] = [
   { code: "launch-monthly", program: "launch-pilot", name: "Launch mensile", type: "monthly_subscription", price: 89, currency: "EUR", projectLimit: null, active: true },
   { code: "launch-pack-3", program: "launch-pilot", name: "Launch pacchetto 3 progetti", type: "project_pack_3", price: 249, currency: "EUR", projectLimit: 3, active: true },
   { code: "margin-annual", program: "margin-pilot", name: "Margin annuale", type: "annual_subscription", price: 790, currency: "EUR", projectLimit: null, active: true },
-  { code: "standard-free", program: "standard-pilot", name: "Standard demo", type: "free", price: 0, currency: "EUR", projectLimit: 1, active: false }
+  { code: "standard-free", program: "standard-pilot", name: "Quality demo", type: "free", price: 0, currency: "EUR", projectLimit: 1, active: false }
 ];
 
 export const demoPayments: Payment[] = [

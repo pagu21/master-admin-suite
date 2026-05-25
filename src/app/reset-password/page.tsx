@@ -12,6 +12,7 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState("");
   const [ready, setReady] = useState(false);
   const [hasRecoverySession, setHasRecoverySession] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -69,14 +70,23 @@ export default function ResetPasswordPage() {
     setLoading(true);
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
 
     if (error) {
+      setLoading(false);
       setMessage(error.message);
       return;
     }
 
-    setMessage("Password aggiornata. Ora puoi entrare con la nuova password.");
+    await supabase.auth.signOut();
+    setLoading(false);
+    setCompleted(true);
+    setHasRecoverySession(false);
+    setPassword("");
+    setConfirmPassword("");
+    setMessage("Password aggiornata correttamente. Per sicurezza la sessione di recupero è stata chiusa: ora puoi entrare dal login.");
+    window.setTimeout(() => {
+      window.location.href = "/login";
+    }, 2200);
   }
 
   return (
@@ -92,7 +102,7 @@ export default function ResetPasswordPage() {
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-[#101828]">Nuova password</h1>
           <p className="mt-2 text-sm leading-6 text-[#667085]">
-            Inserisci una nuova password per completare il recupero.
+            Questa pagina serve solo a impostare una nuova password. Dopo il salvataggio verrai riportato al login.
           </p>
         </div>
         <form className="grid gap-4" onSubmit={onSubmit}>
@@ -104,6 +114,7 @@ export default function ResetPasswordPage() {
               className="rounded-2xl border border-[#d0d5dd] px-4 py-3 outline-none transition focus:border-[#175cd3] focus:ring-4 focus:ring-[#dbeafe]"
               type="password"
               minLength={8}
+              disabled={completed}
               required
             />
           </label>
@@ -115,12 +126,13 @@ export default function ResetPasswordPage() {
               className="rounded-2xl border border-[#d0d5dd] px-4 py-3 outline-none transition focus:border-[#175cd3] focus:ring-4 focus:ring-[#dbeafe]"
               type="password"
               minLength={8}
+              disabled={completed}
               required
             />
           </label>
-          {message && <p className="rounded-2xl bg-[#eef4ff] px-4 py-3 text-sm font-medium text-[#175cd3]">{message}</p>}
-          <button className="rounded-2xl bg-[#123c69] px-5 py-3 font-bold text-white transition hover:bg-[#175cd3] disabled:opacity-60" disabled={loading || !ready || !hasRecoverySession}>
-            {loading ? "Aggiornamento..." : ready ? "Aggiorna password" : "Verifica link..."}
+          {message && <p className={`rounded-2xl px-4 py-3 text-sm font-medium ${completed ? "bg-[#ecfdf3] text-[#067647]" : "bg-[#eef4ff] text-[#175cd3]"}`}>{message}</p>}
+          <button className="rounded-2xl bg-[#123c69] px-5 py-3 font-bold text-white transition hover:bg-[#175cd3] disabled:opacity-60" disabled={loading || !ready || !hasRecoverySession || completed}>
+            {loading ? "Aggiornamento..." : completed ? "Password aggiornata" : ready ? "Aggiorna password" : "Verifica link..."}
           </button>
         </form>
       </div>

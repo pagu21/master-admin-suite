@@ -882,7 +882,7 @@ function ProfilesGuideSection() {
       ]
     },
     {
-      program: "Standard Pilot",
+      program: "Quality Pilot",
       accent: "from-[#f59e0b] to-[#f97316]",
       intro: "Profili predisposti per standard operativi, procedure, qualita e controllo organizzativo.",
       profiles: [
@@ -895,14 +895,14 @@ function ProfilesGuideSection() {
         {
           name: "Consulente",
           badge: "Supervisione",
-          description: "Profilo per seguire piu clienti o piu strutture quando Standard Pilot sara attivato.",
+          description: "Profilo per seguire piu clienti o piu strutture quando Quality Pilot sara attivato.",
           use: "Per consulenti qualità, franchisor o figure che coordinano procedure su più locali."
         },
         {
           name: "Master Secondario",
           badge: "Gestione accessi",
           description: "Profilo amministrativo operativo per assegnare utenti, licenze e ruoli.",
-          use: "Da usare quando Standard Pilot sara gestito da una struttura commerciale o interna."
+          use: "Da usare quando Quality Pilot sara gestito da una struttura commerciale o interna."
         }
       ]
     }
@@ -2213,7 +2213,7 @@ function CreateUserModal({
                 </button>
               </div>
               <div className="mt-3 rounded-2xl border border-[#d9e2ef] bg-[#f8fafc] px-4 py-3 text-sm leading-6 text-[#516079]">
-                Il master secondario gestisce gli utenti dal pannello centrale, può eliminare clienti non master e riceve profilo Master su Margin Pilot, Launch Pilot e Standard Pilot.
+                Il master secondario gestisce gli utenti dal pannello centrale, può eliminare clienti non master e riceve profilo Master su Margin Pilot, Launch Pilot e Quality Pilot.
               </div>
             </div>
             {form.assignments.map((assignment) => {

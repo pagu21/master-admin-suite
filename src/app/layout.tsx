@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Master Admin Suite",
-  description: "Pannello centrale per Margin Pilot, Launch Pilot e Standard Pilot"
+  description: "Pannello centrale per Margin Pilot, Launch Pilot e Quality Pilot"
 };
 
 export default function RootLayout({

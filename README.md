@@ -4,7 +4,7 @@ Pannello amministrativo centrale indipendente per l'ecosistema Pilot:
 
 - Margin Pilot
 - Launch Pilot
-- Standard Pilot
+- Quality Pilot
 
 Il progetto gestisce utenti, programmi, ruoli, licenze, piani commerciali, pagamenti, fatturazione, CRM e audit logs. I software restano separati e consultano Supabase per verificare accessi e licenze.
 
@@ -38,7 +38,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_MARGIN_PILOT_LOGIN=
 NEXT_PUBLIC_LAUNCH_PILOT_LOGIN=
-NEXT_PUBLIC_STANDARD_PILOT_LOGIN=
+NEXT_PUBLIC_QUALITY_PILOT_LOGIN=
 ```
 
 ## Installazione
@@ -64,7 +64,7 @@ http://127.0.0.1:3004/
 
 ## Collegamento con gli altri software
 
-Margin Pilot, Launch Pilot e Standard Pilot dovranno leggere:
+Margin Pilot, Launch Pilot e Quality Pilot dovranno leggere:
 
 - `programs`
 - `user_program_access`
