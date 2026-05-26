@@ -410,7 +410,7 @@ insert into public.programs (name, slug, description, login_url, active)
 values
   ('Margin Pilot', 'margin-pilot', 'Controllo marginalità, prezzi e profittabilità.', 'http://127.0.0.1:3002/login', true),
   ('Launch Pilot', 'launch-pilot', 'Prefattibilità, business plan e sostenibilità finanziaria.', 'http://127.0.0.1:3003/login', true),
-  ('Quality Pilot', 'standard-pilot', 'Standard operativi e controllo qualità.', 'http://127.0.0.1:3005/login', false)
+  ('Quality Pilot', 'quality-pilot', 'Quality intelligence, audit e controllo esperienza cliente.', 'https://quality-pilot.vercel.app/login', true)
 on conflict (slug) do update set
   name = excluded.name,
   description = excluded.description,
@@ -440,7 +440,7 @@ join (
     ('launch-pilot', 'launch-pack-3', 'Launch Pilot 3 progetti', 'project_pack_3', 249.00, 3, true),
     ('launch-pilot', 'launch-pack-5', 'Launch Pilot 5 progetti', 'project_pack_5', 390.00, 5, true),
     ('margin-pilot', 'margin-annual', 'Margin Pilot annuale', 'annual_subscription', 790.00, null, true),
-    ('standard-pilot', 'standard-free', 'Quality Pilot demo', 'free', 0.00, 1, false)
+    ('quality-pilot', 'quality-free', 'Quality Pilot demo', 'free', 0.00, 1, true)
 ) as s(program_slug, code, plan_name, license_type, price, project_limit, active)
 on p.slug = s.program_slug
 on conflict (code) do update set

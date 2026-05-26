@@ -60,7 +60,7 @@ http://127.0.0.1:3004/
 2. Apri SQL Editor.
 3. Esegui `supabase/schema.sql`.
 4. Crea l'utente amministratore con Supabase Auth.
-5. Imposta `profiles.is_admin = true` per l'utente admin.
+5. Imposta `profiles.is_super_admin = true` per il Super Master proprietario oppure `profiles.is_admin = true` per un Master secondario.
 
 ## Collegamento con gli altri software
 
@@ -76,6 +76,9 @@ Margin Pilot, Launch Pilot e Quality Pilot dovranno leggere:
 In Launch Pilot, quando l'utente crea un progetto, va verificato `can_create_project('launch-pilot')`.
 Per licenze a pacchetto, dopo la creazione va incrementato `licenses.projects_used`.
 
+Per Quality Pilot lo slug programma ufficiale e' `quality-pilot`.
+Se nel database esiste ancora `standard-pilot`, eseguire `supabase/rename-standard-to-quality.sql`.
+
 ## Deploy Vercel
 
 1. Crea repository Git.
@@ -83,4 +86,4 @@ Per licenze a pacchetto, dopo la creazione va incrementato `licenses.projects_us
 3. Inserisci le env variables.
 4. Deploy.
 
-Il pannello admin è protetto da middleware Supabase Auth. Le policy RLS impediscono accessi non autorizzati lato database.
+Il pannello admin è riservato esclusivamente a Super Master e Master secondari. Il middleware controlla sessione, profilo attivo e flag `is_super_admin` / `is_admin`; le API e le policy RLS impediscono accessi non autorizzati lato database.

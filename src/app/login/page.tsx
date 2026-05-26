@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowLeft, LockKeyhole, X } from "lucide-react";
 import { createSupabaseBrowserClient, hasSupabaseBrowserConfig } from "@/lib/supabase/client";
@@ -16,6 +16,13 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "unauthorized") {
+      setMessage("Accesso non autorizzato. Il pannello Master Admin è riservato esclusivamente a Super Master e Master.");
+    }
+  }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,6 +42,24 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
+
+    const { data: userData } = await supabase.auth.getUser();
+    const { data: profile } = userData.user
+      ? await supabase
+          .from("profiles")
+          .select("is_admin,is_super_admin,status")
+          .eq("id", userData.user.id)
+          .maybeSingle()
+      : { data: null };
+
+    const canAccessAdmin = profile?.status === "active" && (profile.is_admin === true || profile.is_super_admin === true);
+    if (!canAccessAdmin) {
+      await supabase.auth.signOut();
+      setMessage("Accesso non autorizzato. Il pannello Master Admin è riservato esclusivamente a Super Master e Master.");
+      setLoading(false);
+      return;
+    }
+
     await fetch("/api/auth/track-login", { method: "POST" }).catch(() => undefined);
     window.location.href = "/admin";
   }

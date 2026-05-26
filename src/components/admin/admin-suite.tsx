@@ -8,6 +8,7 @@ import {
   BadgeCheck,
   CalendarClock,
   CheckCircle2,
+  ArrowRight,
   CircleDollarSign,
   Clipboard,
   KeyRound,
@@ -437,8 +438,8 @@ export function AdminSuite() {
         <header className="sticky top-0 z-10 border-b border-[#d9e2ef] bg-white/90 px-6 py-4 backdrop-blur">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold text-[#667085]">Pannello amministrativo centrale</p>
-              <h2 className="text-2xl font-bold tracking-tight">Gestione ecosistema Pilot</h2>
+              <p className="text-sm font-semibold text-[#667085]">Area riservata Master</p>
+              <h2 className="text-2xl font-bold tracking-tight">Gestione clienti, licenze e programmi</h2>
             </div>
             <div className="flex items-center gap-3">
               <Link
@@ -467,7 +468,7 @@ export function AdminSuite() {
 
         <div className="mx-auto max-w-7xl px-6 py-7">
           <MobileNav activeSection={activeSection} setActiveSection={setActiveSection} />
-          {activeSection === "dashboard" && <DashboardSection />}
+          {activeSection === "dashboard" && <DashboardSection onNavigate={setActiveSection} onCreateUser={() => setIsCreateUserOpen(true)} />}
           {activeSection === "users" && (
             <UsersSection
               users={filteredUsers}
@@ -557,16 +558,87 @@ function MobileNav({ activeSection, setActiveSection }: { activeSection: string;
   );
 }
 
-function DashboardSection() {
+function DashboardSection({ onNavigate, onCreateUser }: { onNavigate: (section: string) => void; onCreateUser: () => void }) {
   const cards = [
     { label: "Utenti totali", value: dashboardStats.users, icon: UserPlus, tone: "bg-[#eef4ff] text-[#175cd3]" },
     { label: "Licenze attive", value: dashboardStats.activeLicenses, icon: BadgeCheck, tone: "bg-[#ecfdf3] text-[#067647]" },
     { label: "Licenze bloccate", value: dashboardStats.expiredLicenses, icon: AlertCircle, tone: "bg-[#fff7ed] text-[#b54708]" },
     { label: "Incassi registrati", value: euro(dashboardStats.recentPayments), icon: MoneyIcon, tone: "bg-[#f0f9ff] text-[#026aa2]" }
   ];
+  const quickActions = [
+    {
+      title: "Crea un cliente",
+      description: "Inserisci email, password, programma, profilo e licenza in un unico passaggio.",
+      icon: UserPlus,
+      tone: "bg-[#eef4ff] text-[#175cd3] border-[#b2ccff]",
+      action: onCreateUser
+    },
+    {
+      title: "Controlla licenze",
+      description: "Verifica subito chi è attivo, sospeso o in scadenza e cambia stato dalla tabella.",
+      icon: BadgeCheck,
+      tone: "bg-[#ecfdf3] text-[#067647] border-[#abefc6]",
+      action: () => onNavigate("licenses")
+    },
+    {
+      title: "Apri programmi",
+      description: "Vedi i software disponibili, lo stato e i collegamenti operativi.",
+      icon: ShieldCheck,
+      tone: "bg-[#f0f9ff] text-[#026aa2] border-[#bae6fd]",
+      action: () => onNavigate("programs")
+    },
+    {
+      title: "Gestisci mailing list",
+      description: "Trova clienti, non clienti e contatti interessati ai programmi Pilot.",
+      icon: Mail,
+      tone: "bg-[#fff7ed] text-[#b54708] border-[#fedf89]",
+      action: () => onNavigate("contacts")
+    }
+  ];
 
   return (
     <div className="grid gap-6">
+      <section className="rounded-[28px] border border-[#d9e2ef] bg-white p-5 soft-shadow md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-black uppercase tracking-[0.14em] text-[#175cd3]">Cosa vuoi fare?</p>
+            <h2 className="mt-2 text-3xl font-black tracking-tight text-[#101828]">Le operazioni principali sono qui</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#667085]">
+              Usa questi pulsanti per le attività più frequenti. Le sezioni complete restano nel menu laterale.
+            </p>
+          </div>
+          <button
+            onClick={onCreateUser}
+            className="inline-flex items-center gap-2 rounded-full bg-[#123c69] px-5 py-3 text-sm font-bold text-white shadow-sm"
+          >
+            <UserPlus className="h-4 w-4" />
+            Nuovo cliente
+          </button>
+        </div>
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {quickActions.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.title}
+                type="button"
+                onClick={item.action}
+                className={`group rounded-[24px] border p-5 text-left transition hover:-translate-y-0.5 hover:shadow-lg ${item.tone}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/80 shadow-sm">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <ArrowRight className="h-5 w-5 opacity-60 transition group-hover:translate-x-1 group-hover:opacity-100" />
+                </div>
+                <h3 className="mt-4 text-lg font-black">{item.title}</h3>
+                <p className="mt-2 text-sm font-semibold leading-6 opacity-85">{item.description}</p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon;
@@ -587,7 +659,7 @@ function DashboardSection() {
       </div>
 
       <div className="grid gap-6">
-        <Panel title="Ultime attività" action="Audit completo">
+        <Panel title="Ultime attività" action="Registro completo" onAction={() => onNavigate("audit")}>
           <div className="grid gap-3">
             {demoAuditLogs.map((log) => (
               <div key={log.id} className="rounded-2xl bg-[#f8fafc] p-4">
@@ -644,7 +716,7 @@ function UsersSection({
   const neverLoggedUsers = users.filter((user) => user.lastAccess === "Mai").length;
 
   return (
-    <Panel title="Gestione utenti" action="Nuovo utente" onAction={onCreateUser}>
+    <Panel title="Clienti e utenti" action="Nuovo cliente" onAction={onCreateUser}>
       <div className="mb-5 grid gap-3 md:grid-cols-3">
         <AdminAlertCard label="Senza programma" value={usersWithoutPrograms} tone={usersWithoutPrograms > 0 ? "amber" : "green"} />
         <AdminAlertCard label="Accessi sospesi" value={suspendedUsers} tone={suspendedUsers > 0 ? "red" : "green"} />
@@ -696,17 +768,17 @@ function UsersSection({
           className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#b2ccff] bg-[#eef4ff] px-4 py-3 text-sm font-bold text-[#175cd3] hover:border-[#175cd3]"
         >
           <Printer className="h-4 w-4" />
-          Stampa clienti
+          Stampa elenco
         </button>
       </div>
       <Table>
         <thead>
           <tr>
-            <Th>Utente</Th>
+            <Th>Cliente / utente</Th>
             <Th>Programmi e ruoli</Th>
             <Th>Stato</Th>
             <Th>Ultimo accesso</Th>
-            <Th>Azioni</Th>
+            <Th>Operazioni</Th>
           </tr>
         </thead>
         <tbody>
@@ -767,7 +839,7 @@ function UsersSection({
 
 function ProgramsSection() {
   return (
-    <Panel title="Gestione programmi" action="Aggiungi programma">
+    <Panel title="Programmi">
       <div className="mb-5 rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-5">
         <p className="text-sm font-bold uppercase tracking-[0.14em] text-[#175cd3]">Ecosistema Pilot</p>
         <h3 className="mt-2 text-2xl font-bold text-[#101828]">Tutti i programmi gestiti dal Master Admin</h3>
@@ -1010,7 +1082,7 @@ function LicensesSection({
   }
 
   return (
-    <Panel title="Gestione licenze">
+    <Panel title="Licenze">
       <div className="mb-4 rounded-2xl border border-[#b2ccff] bg-[#eef4ff] px-4 py-3 text-sm leading-6 text-[#123c69]">
         Puoi cambiare rapidamente lo stato della licenza direttamente dalla tabella. Per modificare piano, date, ruolo o permessi apri la scheda utente.
       </div>
@@ -1927,7 +1999,7 @@ const defaultAssignments = (): ProgramAssignmentForm[] => [
   },
   {
     enabled: false,
-    program: "standard-pilot",
+    program: "quality-pilot",
     role: "utente",
     licenseType: "free",
     startDate: todayIso(),
@@ -1980,7 +2052,7 @@ function masterSecondaryAssignments(): ProgramAssignmentForm[] {
     ...assignment,
     enabled: true,
     role: "admin",
-    licenseType: assignment.program === "standard-pilot" ? "free" : "annual_subscription",
+    licenseType: assignment.program === "quality-pilot" ? "free" : "annual_subscription",
     projectsPurchased: null,
     permissionProfile: "completo",
     marginAccessConfig: presetMarginAccessConfig("completo")

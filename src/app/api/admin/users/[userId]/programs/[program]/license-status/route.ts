@@ -8,7 +8,7 @@ type UpdateLicenseStatusPayload = {
 };
 
 const validStatuses: LicenseStatus[] = ["active", "pending", "expired", "suspended"];
-const validPrograms: ProgramSlug[] = ["margin-pilot", "launch-pilot", "standard-pilot"];
+const validPrograms: ProgramSlug[] = ["margin-pilot", "launch-pilot", "quality-pilot"];
 
 function hasServerConfig() {
   return Boolean(

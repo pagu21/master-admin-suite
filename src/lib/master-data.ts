@@ -13,7 +13,7 @@ import {
   UsersRound
 } from "lucide-react";
 
-export type ProgramSlug = "margin-pilot" | "launch-pilot" | "standard-pilot";
+export type ProgramSlug = "margin-pilot" | "launch-pilot" | "quality-pilot";
 export type RoleCode = "admin" | "consulente" | "ristoratore" | "utente";
 export type LicenseType =
   | "monthly_subscription"
@@ -116,27 +116,27 @@ export const programs: Program[] = [
     active: true
   },
   {
-    slug: "standard-pilot",
+    slug: "quality-pilot",
     name: "Quality Pilot",
-    description: "Standard operativi, procedure e controllo qualità per la ristorazione.",
-    loginUrl: "https://qualitypilot.vercel.app/login",
+    description: "Audit, customer experience, reputazione e qualità operativa per ristoranti e gruppi hospitality.",
+    loginUrl: "https://quality-pilot.vercel.app/login",
     accent: "from-amber-500 to-orange-400",
-    active: false
+    active: true
   }
 ];
 
 export const sidebarItems: Array<{ id: string; label: string; icon: LucideIcon }> = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "users", label: "Utenti", icon: UsersRound },
-  { id: "profiles", label: "Profili", icon: ShieldCheck },
+  { id: "dashboard", label: "Inizio", icon: LayoutDashboard },
+  { id: "users", label: "Clienti e utenti", icon: UsersRound },
+  { id: "profiles", label: "Profili e ruoli", icon: ShieldCheck },
   { id: "programs", label: "Programmi", icon: Building2 },
   { id: "licenses", label: "Licenze", icon: BadgeCheck },
-  { id: "plans", label: "Piani commerciali", icon: ListChecks },
+  { id: "plans", label: "Piani vendita", icon: ListChecks },
   { id: "payments", label: "Pagamenti", icon: CreditCard },
   { id: "invoices", label: "Fatturazione", icon: FileText },
-  { id: "contacts", label: "CRM contatti", icon: BookOpenCheck },
+  { id: "contacts", label: "Contatti e mailing", icon: BookOpenCheck },
   { id: "settings", label: "Impostazioni", icon: Settings },
-  { id: "audit", label: "Audit logs", icon: ShieldCheck }
+  { id: "audit", label: "Registro attività", icon: ShieldCheck }
 ];
 
 export const demoUsers: AdminUser[] = [
@@ -197,7 +197,7 @@ export const demoUsers: AdminUser[] = [
     lastAccess: "2026-04-28 11:08",
     accesses: [
       {
-        program: "standard-pilot",
+        program: "quality-pilot",
         role: "admin",
         licenseType: "suspended",
         licenseStatus: "suspended",
@@ -211,7 +211,7 @@ export const demoPlans: Plan[] = [
   { code: "launch-monthly", program: "launch-pilot", name: "Launch mensile", type: "monthly_subscription", price: 89, currency: "EUR", projectLimit: null, active: true },
   { code: "launch-pack-3", program: "launch-pilot", name: "Launch pacchetto 3 progetti", type: "project_pack_3", price: 249, currency: "EUR", projectLimit: 3, active: true },
   { code: "margin-annual", program: "margin-pilot", name: "Margin annuale", type: "annual_subscription", price: 790, currency: "EUR", projectLimit: null, active: true },
-  { code: "standard-free", program: "standard-pilot", name: "Quality demo", type: "free", price: 0, currency: "EUR", projectLimit: 1, active: false }
+  { code: "quality-free", program: "quality-pilot", name: "Quality demo", type: "free", price: 0, currency: "EUR", projectLimit: 1, active: true }
 ];
 
 export const demoPayments: Payment[] = [
@@ -223,7 +223,7 @@ export const demoPayments: Payment[] = [
 export const demoContacts: Contact[] = [
   { id: "c-1", name: "Elena Neri", email: "elena@nerifood.it", company: "Neri Food", city: "Pisa", interestedProgram: "launch-pilot", status: "interessato" },
   { id: "c-2", name: "Davide Conti", email: "davide@conti.it", company: "Conti Consulting", city: "Roma", interestedProgram: "margin-pilot", status: "contattato" },
-  { id: "c-3", name: "Giulia Serra", email: "giulia@serra.it", company: "Serra Lab", city: "Torino", interestedProgram: "standard-pilot", status: "nuovo" }
+  { id: "c-3", name: "Giulia Serra", email: "giulia@serra.it", company: "Serra Lab", city: "Torino", interestedProgram: "quality-pilot", status: "nuovo" }
 ];
 
 export const demoAuditLogs: AuditLog[] = [
