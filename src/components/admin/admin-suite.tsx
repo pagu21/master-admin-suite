@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ArrowRight,
   CircleDollarSign,
-  Clipboard,
   KeyRound,
   LockKeyhole,
   LogOut,
@@ -29,7 +28,7 @@ import {
 import {
   dashboardStats,
   demoAuditLogs,
-  demoContacts,
+  demoMailingContacts,
   demoPayments,
   demoPlans,
   demoUsers,
@@ -42,6 +41,8 @@ import {
   type AdminUser,
   type LicenseStatus,
   type LicenseType,
+  type MailingContact,
+  type Payment,
   type ProgramSlug
 } from "@/lib/master-data";
 import { createSupabaseBrowserClient, hasSupabaseBrowserConfig } from "@/lib/supabase/client";
@@ -242,12 +243,23 @@ const statusClasses: Record<string, string> = {
   contattato: "bg-[#f9fafb] text-[#344054] border-[#d0d5dd]",
   interessato: "bg-[#ecfdf3] text-[#067647] border-[#abefc6]",
   cliente: "bg-[#ecfdf3] text-[#067647] border-[#abefc6]",
+  lead: "bg-[#eef4ff] text-[#175cd3] border-[#b2ccff]",
+  prova_gratuita: "bg-[#fffaeb] text-[#b54708] border-[#fedf89]",
+  cliente_attivo: "bg-[#ecfdf3] text-[#067647] border-[#abefc6]",
+  ex_cliente: "bg-[#f9fafb] text-[#344054] border-[#d0d5dd]",
+  da_ricontattare: "bg-[#fff7ed] text-[#b54708] border-[#fedf89]",
   non_interessato: "bg-[#fef3f2] text-[#b42318] border-[#fecdca]"
 };
+
+const mailingRoles = ["ristoratore", "consulente", "franchisor", "fornitore", "altro"] as const;
+const mailingPrograms = ["MarginPilot", "LaunchPilot", "QualityPilot", "Master Admin Suite", "Altro"] as const;
+const mailingStatuses = ["lead", "prova_gratuita", "cliente_attivo", "ex_cliente", "da_ricontattare", "non_interessato"] as const;
+const mailingSources = ["inserimento_manuale", "import_csv", "sito_web", "evento", "consulenza", "altro"] as const;
 
 export function AdminSuite() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [users, setUsers] = useState<AdminUser[]>(demoUsers);
+  const [payments, setPayments] = useState<Payment[]>(demoPayments);
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
   const [createUserMessage, setCreateUserMessage] = useState("");
   const [programFilter, setProgramFilter] = useState<ProgramSlug | "all">("all");
@@ -374,6 +386,39 @@ export function AdminSuite() {
     setUsers((current) => current.filter((item) => item.id !== user.id));
   }
 
+  function handleUpdatePaymentStatus(paymentId: string, status: Payment["status"]) {
+    setPayments((current) =>
+      current.map((payment) =>
+        payment.id === paymentId
+          ? {
+              ...payment,
+              status,
+              paidAt: status === "paid" && !payment.paidAt ? new Date().toISOString().slice(0, 10) : payment.paidAt
+            }
+          : payment
+      )
+    );
+  }
+
+  function handleUnlinkPaymentClient(payment: Payment) {
+    const confirmed = window.confirm(
+      `Scollegare il cliente dal pagamento ${payment.id}?\n\nIl pagamento resta registrato, ma non sarà più associato alla scheda cliente.`
+    );
+    if (!confirmed) return;
+
+    setPayments((current) =>
+      current.map((item) =>
+        item.id === payment.id
+          ? {
+              ...item,
+              user: "Cliente scollegato",
+              method: item.method ? `${item.method} · da verificare` : "Da verificare"
+            }
+          : item
+      )
+    );
+  }
+
   function requestResetPassword(user: AdminUser) {
     setResetPasswordUser(user);
   }
@@ -492,7 +537,15 @@ export function AdminSuite() {
           {activeSection === "programs" && <ProgramsSection />}
           {activeSection === "licenses" && <LicensesSection users={users} onUpdateStatus={handleUpdateLicenseStatus} onEditUser={setEditingUser} />}
           {activeSection === "plans" && <PlansSection />}
-          {activeSection === "payments" && <PaymentsSection users={users} onEditUser={setEditingUser} />}
+          {activeSection === "payments" && (
+            <PaymentsSection
+              payments={payments}
+              users={users}
+              onEditUser={setEditingUser}
+              onUpdatePaymentStatus={handleUpdatePaymentStatus}
+              onUnlinkPaymentClient={handleUnlinkPaymentClient}
+            />
+          )}
           {activeSection === "invoices" && <InvoicesSection />}
           {activeSection === "contacts" && <ContactsSection users={users} />}
           {activeSection === "settings" && <SettingsSection />}
@@ -1247,7 +1300,26 @@ function PlansSection() {
   );
 }
 
-function PaymentsSection({ users, onEditUser }: { users: AdminUser[]; onEditUser: (user: AdminUser) => void }) {
+const paymentStatusOptions: Array<{ value: Payment["status"]; label: string }> = [
+  { value: "paid", label: "Pagato" },
+  { value: "pending", label: "In attesa" },
+  { value: "failed", label: "Non riuscito" },
+  { value: "refunded", label: "Rimborsato" }
+];
+
+function PaymentsSection({
+  payments,
+  users,
+  onEditUser,
+  onUpdatePaymentStatus,
+  onUnlinkPaymentClient
+}: {
+  payments: Payment[];
+  users: AdminUser[];
+  onEditUser: (user: AdminUser) => void;
+  onUpdatePaymentStatus: (paymentId: string, status: Payment["status"]) => void;
+  onUnlinkPaymentClient: (payment: Payment) => void;
+}) {
   function findPaymentUser(paymentUser: string) {
     const normalized = paymentUser.toLowerCase();
     return users.find((user) => {
@@ -1261,6 +1333,12 @@ function PaymentsSection({ users, onEditUser }: { users: AdminUser[]; onEditUser
 
   return (
     <Panel title="Pagamenti" action="Registra pagamento">
+      <div className="mb-4 rounded-3xl border border-[#d9e2ef] bg-[#f8fbff] p-4">
+        <h3 className="text-sm font-black text-[#101828]">Gestione rapida pagamenti</h3>
+        <p className="mt-1 text-sm leading-6 text-[#667085]">
+          Da questa tabella puoi cambiare lo stato del pagamento e aprire la scheda cliente collegata. Se un pagamento è associato al cliente sbagliato, puoi scollegarlo senza cancellare il cliente.
+        </p>
+      </div>
       <Table>
         <thead>
           <tr>
@@ -1274,28 +1352,62 @@ function PaymentsSection({ users, onEditUser }: { users: AdminUser[]; onEditUser
           </tr>
         </thead>
         <tbody>
-          {demoPayments.map((payment) => {
+          {payments.map((payment) => {
             const user = findPaymentUser(payment.user);
             return (
               <tr key={payment.id}>
-                <Td>{payment.user}</Td>
+                <Td>
+                  <div className="min-w-[180px]">
+                    <p className="font-bold text-[#101828]">{payment.user}</p>
+                    <p className="mt-1 text-xs font-semibold text-[#667085]">ID pagamento: {payment.id}</p>
+                  </div>
+                </Td>
                 <Td>{programName(payment.program)}</Td>
                 <Td className="numeric font-bold">{euro(payment.amount)}</Td>
                 <Td>{payment.method}</Td>
                 <Td>{payment.paidAt}</Td>
-                <Td><Badge value={payment.status} label={payment.status} /></Td>
                 <Td>
-                  {user ? (
-                    <button
-                      type="button"
-                      onClick={() => onEditUser(user)}
-                      className="rounded-xl border border-[#b2ccff] bg-white px-3 py-2 text-xs font-bold text-[#175cd3] hover:bg-[#eef4ff]"
+                  <div className="flex min-w-[180px] flex-col gap-2">
+                    <Badge value={payment.status} label={paymentStatusOptions.find((option) => option.value === payment.status)?.label ?? payment.status} />
+                    <select
+                      value={payment.status}
+                      onChange={(event) => onUpdatePaymentStatus(payment.id, event.target.value as Payment["status"])}
+                      className="rounded-xl border border-[#d0d5dd] bg-white px-3 py-2 text-xs font-bold text-[#344054] outline-none transition focus:border-[#175cd3] focus:ring-2 focus:ring-[#d1e0ff]"
+                      aria-label={`Cambia stato pagamento ${payment.id}`}
                     >
-                      Apri scheda
-                    </button>
-                  ) : (
-                    <span className="text-xs font-semibold text-[#98a2b3]">Cliente non collegato</span>
-                  )}
+                      {paymentStatusOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </Td>
+                <Td>
+                  <div className="flex min-w-[220px] flex-wrap gap-2">
+                    {user ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => onEditUser(user)}
+                          className="rounded-xl border border-[#b2ccff] bg-white px-3 py-2 text-xs font-bold text-[#175cd3] hover:bg-[#eef4ff]"
+                        >
+                          Apri scheda cliente
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onUnlinkPaymentClient(payment)}
+                          className="rounded-xl border border-[#fedf89] bg-[#fffaeb] px-3 py-2 text-xs font-bold text-[#b54708] hover:bg-white"
+                        >
+                          Scollega cliente
+                        </button>
+                      </>
+                    ) : (
+                      <span className="rounded-xl border border-[#eaecf0] bg-[#f9fafb] px-3 py-2 text-xs font-bold text-[#667085]">
+                        Cliente non collegato
+                      </span>
+                    )}
+                  </div>
                 </Td>
               </tr>
             );
@@ -1320,107 +1432,504 @@ function InvoicesSection() {
   );
 }
 
-function ContactsSection({ users }: { users: AdminUser[] }) {
-  const [mailingFilter, setMailingFilter] = useState<"all" | "clients" | "contacts">("all");
-  const [copyMessage, setCopyMessage] = useState("");
-  const mailingEntries = [
-    ...users.map((user) => ({
-      id: `user-${user.id}`,
-      type: "Cliente",
-      name: user.name,
-      email: user.email,
-      company: user.company,
-      city: user.city,
-      program: user.accesses.map((access) => programName(access.program)).join(", ") || "-",
-      status: user.status === "active" ? "cliente" : "sospeso"
-    })),
-    ...demoContacts.map((contact) => ({
-      id: `contact-${contact.id}`,
-      type: "Contatto",
-      name: contact.name,
-      email: contact.email,
-      company: contact.company,
-      city: contact.city,
-      program: programName(contact.interestedProgram),
-      status: contact.status
-    }))
-  ].filter((entry) => {
-    if (mailingFilter === "clients") return entry.type === "Cliente";
-    if (mailingFilter === "contacts") return entry.type === "Contatto";
-    return true;
-  });
+const emptyMailingContact = (): MailingContact => {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    id: `ml-${Date.now()}`,
+    nome: "",
+    cognome: "",
+    email: "",
+    telefono: "",
+    azienda_ristorante: "",
+    ruolo: "ristoratore",
+    programma_interessato: "MarginPilot",
+    stato: "lead",
+    consenso_marketing: false,
+    fonte_contatto: "inserimento_manuale",
+    tag: "",
+    note: "",
+    brevo_contact_id: "",
+    mailchimp_contact_id: "",
+    created_at: today,
+    updated_at: today
+  };
+};
 
-  async function copyMailingList() {
-    const emails = Array.from(new Set(mailingEntries.map((entry) => entry.email).filter(Boolean)));
-    await navigator.clipboard.writeText(emails.join("; ")).catch(() => undefined);
-    setCopyMessage(`${emails.length} email copiate.`);
-    window.setTimeout(() => setCopyMessage(""), 2500);
+const mailingLabels: Record<string, string> = {
+  ristoratore: "Ristoratore",
+  consulente: "Consulente",
+  franchisor: "Franchisor",
+  fornitore: "Fornitore",
+  altro: "Altro",
+  lead: "Lead",
+  prova_gratuita: "Prova gratuita",
+  cliente_attivo: "Cliente attivo",
+  ex_cliente: "Ex cliente",
+  da_ricontattare: "Da ricontattare",
+  non_interessato: "Non interessato",
+  inserimento_manuale: "Inserimento manuale",
+  import_csv: "Import CSV",
+  sito_web: "Sito web",
+  evento: "Evento",
+  consulenza: "Consulenza"
+};
+
+const mailingCsvFields: Array<keyof MailingContact> = [
+  "id",
+  "nome",
+  "cognome",
+  "email",
+  "telefono",
+  "azienda_ristorante",
+  "ruolo",
+  "programma_interessato",
+  "stato",
+  "consenso_marketing",
+  "fonte_contatto",
+  "tag",
+  "note",
+  "brevo_contact_id",
+  "mailchimp_contact_id",
+  "created_at",
+  "updated_at"
+];
+
+function mailingProgramFromSlug(program?: ProgramSlug): MailingContact["programma_interessato"] {
+  if (program === "margin-pilot") return "MarginPilot";
+  if (program === "launch-pilot") return "LaunchPilot";
+  if (program === "quality-pilot") return "QualityPilot";
+  return "Altro";
+}
+
+function ContactsSection({ users }: { users: AdminUser[] }) {
+  const [contacts, setContacts] = useState<MailingContact[]>(() => [
+    ...demoMailingContacts,
+    ...users.map((user): MailingContact => {
+      const base = emptyMailingContact();
+      return {
+        ...base,
+        id: `user-${user.id}`,
+        nome: user.name.split(" ")[0] ?? user.name,
+        cognome: user.name.split(" ").slice(1).join(" "),
+        email: user.email,
+        azienda_ristorante: user.company,
+        programma_interessato: mailingProgramFromSlug(user.accesses[0]?.program),
+        stato: user.status === "active" ? "cliente_attivo" : "ex_cliente",
+        fonte_contatto: "inserimento_manuale",
+        note: "Creato dai clienti presenti in amministrazione."
+      };
+    })
+  ]);
+  const [editingContact, setEditingContact] = useState<MailingContact | null>(null);
+  const [message, setMessage] = useState("");
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [programFilter, setProgramFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [consentFilter, setConsentFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+
+  const filteredContacts = useMemo(() => {
+    const cleanQuery = query.trim().toLowerCase();
+    return contacts.filter((contact) => {
+      const searchable = [contact.nome, contact.cognome, contact.email, contact.azienda_ristorante, contact.tag].join(" ").toLowerCase();
+      if (cleanQuery && !searchable.includes(cleanQuery)) return false;
+      if (roleFilter !== "all" && contact.ruolo !== roleFilter) return false;
+      if (programFilter !== "all" && contact.programma_interessato !== programFilter) return false;
+      if (statusFilter !== "all" && contact.stato !== statusFilter) return false;
+      if (sourceFilter !== "all" && contact.fonte_contatto !== sourceFilter) return false;
+      if (consentFilter === "yes" && !contact.consenso_marketing) return false;
+      if (consentFilter === "no" && contact.consenso_marketing) return false;
+      return true;
+    });
+  }, [contacts, consentFilter, programFilter, query, roleFilter, sourceFilter, statusFilter]);
+
+  function saveContact(contact: MailingContact) {
+    if (!contact.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim())) {
+      setMessage("Inserisci una email valida. La email è obbligatoria.");
+      return;
+    }
+
+    const email = contact.email.trim().toLowerCase();
+    const duplicate = contacts.some((item) => item.id !== contact.id && item.email.toLowerCase() === email);
+    if (duplicate) {
+      setMessage("Esiste già un contatto con questa email. Per evitare duplicati non è stato salvato.");
+      return;
+    }
+
+    const now = new Date().toISOString().slice(0, 10);
+    const normalized = { ...contact, email, updated_at: now, created_at: contact.created_at || now };
+    setContacts((current) => (current.some((item) => item.id === contact.id) ? current.map((item) => (item.id === contact.id ? normalized : item)) : [normalized, ...current]));
+    setEditingContact(null);
+    setMessage("Contatto salvato nella Mailing List.");
+  }
+
+  function deleteContact(contact: MailingContact) {
+    if (!window.confirm("Sei sicuro di voler eliminare questo contatto?")) return;
+    setContacts((current) => current.filter((item) => item.id !== contact.id));
+    setMessage("Contatto eliminato.");
+  }
+
+  function exportCsv() {
+    const rows = [mailingCsvFields.join(",")].concat(
+      filteredContacts.map((contact) =>
+        mailingCsvFields
+          .map((field) => {
+            const value = String(contact[field] ?? "").replaceAll('"', '""');
+            return `"${value}"`;
+          })
+          .join(",")
+      )
+    );
+    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "mailing-list-pilot.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importCsv(file: File) {
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter((line) => line.trim());
+    const headers = splitCsvLine(lines[0] ?? "").map((header) => header.trim().toLowerCase());
+    const emailIndex = headers.indexOf("email");
+    if (emailIndex < 0) {
+      setMessage("Import non riuscito: nel CSV deve esserci una colonna email.");
+      return;
+    }
+
+    let imported = 0;
+    let skipped = 0;
+    let errors = 0;
+    const existingEmails = new Set(contacts.map((contact) => contact.email.toLowerCase()));
+    const newContacts: MailingContact[] = [];
+
+    lines.slice(1).forEach((line) => {
+      const cells = splitCsvLine(line);
+      const email = (cells[emailIndex] ?? "").trim().toLowerCase();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errors += 1;
+        return;
+      }
+      if (existingEmails.has(email)) {
+        skipped += 1;
+        return;
+      }
+      const contact = emptyMailingContact();
+      mailingCsvFields.forEach((field) => {
+        const index = headers.indexOf(field);
+        if (index < 0) return;
+        const value = (cells[index] ?? "").trim();
+        if (field === "consenso_marketing") {
+          contact.consenso_marketing = ["true", "1", "si", "sì", "yes"].includes(value.toLowerCase());
+        } else if (field in contact) {
+          (contact as Record<string, unknown>)[field] = value;
+        }
+      });
+      contact.id = `ml-import-${Date.now()}-${imported}`;
+      contact.email = email;
+      contact.fonte_contatto = "import_csv";
+      contact.created_at = new Date().toISOString().slice(0, 10);
+      contact.updated_at = contact.created_at;
+      newContacts.push(contact);
+      existingEmails.add(email);
+      imported += 1;
+    });
+
+    setContacts((current) => [...newContacts, ...current]);
+    setMessage(`Import completato: ${imported} contatti importati, ${skipped} duplicati saltati, ${errors} righe con errori, ${Math.max(lines.length - 1, 0)} righe lette.`);
   }
 
   return (
-    <Panel title="CRM / contatti" action="Nuovo contatto">
-      <div className="mb-5 grid gap-4 lg:grid-cols-[1fr_260px_auto]">
+    <Panel title="Mailing List" action="Nuovo contatto" onAction={() => setEditingContact(emptyMailingContact())}>
+      <div className="mb-5 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-5">
           <div className="flex items-start gap-3">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#123c69] text-white">
               <Mail className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold">Mailing list</h3>
+              <h3 className="text-lg font-bold">Contatti, lead e clienti in un unico archivio</h3>
               <p className="mt-1 text-sm leading-6 text-[#667085]">
-                Usa questa lista per comunicazioni commerciali, rinnovi, aggiornamenti prodotto e contatti non ancora clienti.
+                Gestisci i contatti commerciali della Suite Pilot. Per ora puoi creare, filtrare, importare ed esportare: l’invio massivo sarà gestito in futuro con Brevo.
               </p>
             </div>
           </div>
         </div>
-        <select
-          value={mailingFilter}
-          onChange={(event) => setMailingFilter(event.target.value as "all" | "clients" | "contacts")}
-          className="rounded-2xl border border-[#d0d5dd] bg-white px-4 py-3 text-sm font-semibold"
-        >
-          <option value="all">Clienti e contatti</option>
-          <option value="clients">Solo clienti</option>
-          <option value="contacts">Solo non clienti</option>
-        </select>
-        <button
-          type="button"
-          onClick={copyMailingList}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#123c69] px-5 py-3 text-sm font-bold text-white"
-        >
-          <Clipboard className="h-4 w-4" />
-          Copia email
-        </button>
+        <div className="rounded-3xl border border-[#b2ccff] bg-[#eef4ff] p-5">
+          <h3 className="font-bold text-[#123c69]">Integrazione newsletter</h3>
+          <p className="mt-2 text-sm leading-6 text-[#516079]">
+            La Mailing List è pronta per essere collegata a Brevo. In questa fase i contatti possono essere gestiti internamente ed esportati in CSV. L’invio massivo delle email sarà gestito tramite Brevo, per evitare problemi di spam, limiti di invio, disiscrizioni e conformità GDPR.
+          </p>
+          <p className="mt-2 text-xs font-bold text-[#175cd3]">Mailchimp potrà essere aggiunto in futuro come integrazione alternativa.</p>
+        </div>
       </div>
-      {copyMessage && <p className="mb-4 rounded-2xl bg-[#ecfdf3] px-4 py-3 text-sm font-bold text-[#067647]">{copyMessage}</p>}
+
+      <div className="mb-5 grid gap-3 lg:grid-cols-[1.4fr_repeat(5,minmax(130px,1fr))]">
+        <label className="relative">
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98a2b3]" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Cerca nome, email, azienda o tag"
+            className="h-12 w-full rounded-2xl border border-[#d0d5dd] bg-white pl-11 pr-4 text-sm font-semibold outline-none focus:border-[#175cd3] focus:ring-2 focus:ring-[#d1e0ff]"
+          />
+        </label>
+        <MailingFilter value={roleFilter} onChange={setRoleFilter} options={mailingRoles} placeholder="Ruolo" />
+        <MailingFilter value={programFilter} onChange={setProgramFilter} options={mailingPrograms} placeholder="Programma" />
+        <MailingFilter value={statusFilter} onChange={setStatusFilter} options={mailingStatuses} placeholder="Stato" />
+        <MailingFilter value={sourceFilter} onChange={setSourceFilter} options={mailingSources} placeholder="Fonte" />
+        <select value={consentFilter} onChange={(event) => setConsentFilter(event.target.value)} className="h-12 rounded-2xl border border-[#d0d5dd] bg-white px-3 text-sm font-bold">
+          <option value="all">Consenso</option>
+          <option value="yes">Con consenso</option>
+          <option value="no">Senza consenso</option>
+        </select>
+      </div>
+
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-[#d0d5dd] bg-white px-4 py-3 text-sm font-bold text-[#344054] hover:border-[#175cd3]">
+          Importa CSV
+          <input
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void importCsv(file);
+              event.currentTarget.value = "";
+            }}
+          />
+        </label>
+        <button type="button" onClick={exportCsv} className="rounded-2xl bg-[#123c69] px-4 py-3 text-sm font-bold text-white">
+          Esporta CSV
+        </button>
+        <span className="rounded-2xl bg-[#f8fafc] px-4 py-3 text-sm font-bold text-[#516079]">
+          {filteredContacts.length} contatti visualizzati
+        </span>
+      </div>
+
+      {message && <p className="mb-4 rounded-2xl bg-[#ecfdf3] px-4 py-3 text-sm font-bold text-[#067647]">{message}</p>}
+
       <Table>
         <thead>
           <tr>
-            <Th>Nome</Th>
-            <Th>Tipo</Th>
+            <Th>Contatto</Th>
             <Th>Azienda</Th>
-            <Th>Città</Th>
+            <Th>Ruolo</Th>
             <Th>Programma</Th>
             <Th>Stato</Th>
+            <Th>Consenso</Th>
+            <Th>Fonte</Th>
+            <Th>Data</Th>
+            <Th>Azioni</Th>
           </tr>
         </thead>
         <tbody>
-          {mailingEntries.map((contact) => (
+          {filteredContacts.map((contact) => (
             <tr key={contact.id}>
               <Td>
-                <p className="font-bold">{contact.name}</p>
+                <p className="font-bold">{[contact.nome, contact.cognome].filter(Boolean).join(" ") || "Senza nome"}</p>
                 <p className="text-sm text-[#667085]">{contact.email}</p>
               </Td>
-              <Td>{contact.type}</Td>
-              <Td>{contact.company}</Td>
-              <Td>{contact.city}</Td>
-              <Td>{contact.program}</Td>
-              <Td><Badge value={contact.status} label={contact.status.replace("_", " ")} /></Td>
+              <Td>{contact.azienda_ristorante || "-"}</Td>
+              <Td>{mailingLabels[contact.ruolo] ?? contact.ruolo}</Td>
+              <Td>{contact.programma_interessato}</Td>
+              <Td><Badge value={contact.stato} label={mailingLabels[contact.stato] ?? contact.stato} /></Td>
+              <Td>
+                <Badge value={contact.consenso_marketing ? "active" : "pending"} label={contact.consenso_marketing ? "Sì" : "No"} />
+              </Td>
+              <Td>{mailingLabels[contact.fonte_contatto] ?? contact.fonte_contatto}</Td>
+              <Td className="numeric">{contact.created_at}</Td>
+              <Td>
+                <div className="flex min-w-[140px] gap-2">
+                  <button type="button" onClick={() => setEditingContact(contact)} className="rounded-xl border border-[#b2ccff] bg-white px-3 py-2 text-xs font-bold text-[#175cd3]">Modifica</button>
+                  <button type="button" onClick={() => deleteContact(contact)} className="rounded-xl border border-[#fecdca] bg-white px-3 py-2 text-xs font-bold text-[#b42318]">Elimina</button>
+                </div>
+              </Td>
             </tr>
           ))}
         </tbody>
       </Table>
+
+      {editingContact && <MailingContactModal contact={editingContact} onClose={() => setEditingContact(null)} onSave={saveContact} />}
     </Panel>
   );
+}
+
+function MailingFilter({
+  value,
+  onChange,
+  options,
+  placeholder
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly string[];
+  placeholder: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-12 rounded-2xl border border-[#d0d5dd] bg-white px-3 text-sm font-bold text-[#344054] outline-none focus:border-[#175cd3] focus:ring-2 focus:ring-[#d1e0ff]"
+    >
+      <option value="all">{placeholder}</option>
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {mailingLabels[option] ?? option}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function MailingContactModal({
+  contact,
+  onClose,
+  onSave
+}: {
+  contact: MailingContact;
+  onClose: () => void;
+  onSave: (contact: MailingContact) => void;
+}) {
+  const [draft, setDraft] = useState<MailingContact>(contact);
+
+  function update<K extends keyof MailingContact>(field: K, value: MailingContact[K]) {
+    setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  return (
+    <ModalShell title={contact.email ? "Modifica contatto" : "Nuovo contatto"} onClose={onClose} wide>
+      <div className="grid gap-5">
+        <div className="rounded-3xl border border-[#fedf89] bg-[#fffaeb] p-4">
+          <p className="text-sm font-bold text-[#b54708]">Il consenso marketing non è mai preattivato.</p>
+          <p className="mt-1 text-sm leading-6 text-[#667085]">
+            Spuntalo solo se il contatto ha dato un consenso esplicito a ricevere comunicazioni commerciali o newsletter.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <MailingTextField label="Nome" value={draft.nome} onChange={(value) => update("nome", value)} />
+          <MailingTextField label="Cognome" value={draft.cognome} onChange={(value) => update("cognome", value)} />
+          <MailingTextField label="Email obbligatoria" value={draft.email} onChange={(value) => update("email", value)} type="email" />
+          <MailingTextField label="Telefono" value={draft.telefono} onChange={(value) => update("telefono", value)} />
+          <MailingTextField label="Azienda / ristorante" value={draft.azienda_ristorante} onChange={(value) => update("azienda_ristorante", value)} />
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#667085]">Ruolo</span>
+            <select value={draft.ruolo} onChange={(event) => update("ruolo", event.target.value as MailingContact["ruolo"])} className="mt-2 h-12 w-full rounded-2xl border border-[#d0d5dd] bg-white px-3 text-sm font-bold">
+              {mailingRoles.map((role) => <option key={role} value={role}>{mailingLabels[role]}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#667085]">Programma interessato</span>
+            <select value={draft.programma_interessato} onChange={(event) => update("programma_interessato", event.target.value as MailingContact["programma_interessato"])} className="mt-2 h-12 w-full rounded-2xl border border-[#d0d5dd] bg-white px-3 text-sm font-bold">
+              {mailingPrograms.map((program) => <option key={program} value={program}>{program}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#667085]">Stato</span>
+            <select value={draft.stato} onChange={(event) => update("stato", event.target.value as MailingContact["stato"])} className="mt-2 h-12 w-full rounded-2xl border border-[#d0d5dd] bg-white px-3 text-sm font-bold">
+              {mailingStatuses.map((status) => <option key={status} value={status}>{mailingLabels[status]}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#667085]">Fonte contatto</span>
+            <select value={draft.fonte_contatto} onChange={(event) => update("fonte_contatto", event.target.value as MailingContact["fonte_contatto"])} className="mt-2 h-12 w-full rounded-2xl border border-[#d0d5dd] bg-white px-3 text-sm font-bold">
+              {mailingSources.map((source) => <option key={source} value={source}>{mailingLabels[source]}</option>)}
+            </select>
+          </label>
+          <MailingTextField label="Tag" value={draft.tag} onChange={(value) => update("tag", value)} />
+          <MailingTextField label="Brevo contact id futuro" value={draft.brevo_contact_id} onChange={(value) => update("brevo_contact_id", value)} />
+          <MailingTextField label="Mailchimp contact id futuro" value={draft.mailchimp_contact_id} onChange={(value) => update("mailchimp_contact_id", value)} />
+        </div>
+
+        <label className="flex items-start gap-3 rounded-3xl border border-[#d9e2ef] bg-[#f8fafc] p-4">
+          <input
+            type="checkbox"
+            checked={draft.consenso_marketing}
+            onChange={(event) => update("consenso_marketing", event.target.checked)}
+            className="mt-1 h-5 w-5 accent-[#175cd3]"
+          />
+          <span>
+            <span className="block font-bold text-[#101828]">Consenso marketing</span>
+            <span className="mt-1 block text-sm leading-6 text-[#667085]">
+              Attiva solo se il contatto ha autorizzato comunicazioni commerciali, newsletter o aggiornamenti prodotto.
+            </span>
+          </span>
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#667085]">Note</span>
+          <textarea
+            value={draft.note}
+            onChange={(event) => update("note", event.target.value)}
+            rows={4}
+            className="mt-2 w-full rounded-2xl border border-[#d0d5dd] bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-[#175cd3] focus:ring-2 focus:ring-[#d1e0ff]"
+          />
+        </label>
+
+        <div className="flex flex-wrap justify-end gap-3">
+          <button type="button" onClick={onClose} className="rounded-2xl border border-[#d0d5dd] bg-white px-5 py-3 text-sm font-bold text-[#344054]">
+            Annulla
+          </button>
+          <button type="button" onClick={() => onSave(draft)} className="rounded-2xl bg-[#123c69] px-5 py-3 text-sm font-bold text-white">
+            Salva contatto
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+function MailingTextField({
+  label,
+  value,
+  onChange,
+  type = "text"
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#667085]">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 h-12 w-full rounded-2xl border border-[#d0d5dd] bg-white px-4 text-sm font-semibold outline-none focus:border-[#175cd3] focus:ring-2 focus:ring-[#d1e0ff]"
+      />
+    </label>
+  );
+}
+
+function splitCsvLine(line: string) {
+  const cells: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"' && inQuotes && next === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      cells.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  cells.push(current);
+  return cells.map((cell) => cell.trim().replace(/^"|"$/g, ""));
 }
 
 function SettingsSection() {

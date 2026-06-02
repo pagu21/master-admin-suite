@@ -90,6 +90,31 @@ export type Contact = {
   status: "nuovo" | "contattato" | "interessato" | "cliente" | "sospeso" | "non_interessato";
 };
 
+export type MailingContactRole = "ristoratore" | "consulente" | "franchisor" | "fornitore" | "altro";
+export type MailingContactProgram = "MarginPilot" | "LaunchPilot" | "QualityPilot" | "Master Admin Suite" | "Altro";
+export type MailingContactStatus = "lead" | "prova_gratuita" | "cliente_attivo" | "ex_cliente" | "da_ricontattare" | "non_interessato";
+export type MailingContactSource = "inserimento_manuale" | "import_csv" | "sito_web" | "evento" | "consulenza" | "altro";
+
+export type MailingContact = {
+  id: string;
+  nome: string;
+  cognome: string;
+  email: string;
+  telefono: string;
+  azienda_ristorante: string;
+  ruolo: MailingContactRole;
+  programma_interessato: MailingContactProgram;
+  stato: MailingContactStatus;
+  consenso_marketing: boolean;
+  fonte_contatto: MailingContactSource;
+  tag: string;
+  note: string;
+  brevo_contact_id: string;
+  mailchimp_contact_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AuditLog = {
   id: string;
   event: string;
@@ -134,7 +159,7 @@ export const sidebarItems: Array<{ id: string; label: string; icon: LucideIcon }
   { id: "plans", label: "Piani vendita", icon: ListChecks },
   { id: "payments", label: "Pagamenti", icon: CreditCard },
   { id: "invoices", label: "Fatturazione", icon: FileText },
-  { id: "contacts", label: "Contatti e mailing", icon: BookOpenCheck },
+  { id: "contacts", label: "Mailing List", icon: BookOpenCheck },
   { id: "settings", label: "Impostazioni", icon: Settings },
   { id: "audit", label: "Registro attività", icon: ShieldCheck }
 ];
@@ -224,6 +249,47 @@ export const demoContacts: Contact[] = [
   { id: "c-1", name: "Elena Neri", email: "elena@nerifood.it", company: "Neri Food", city: "Pisa", interestedProgram: "launch-pilot", status: "interessato" },
   { id: "c-2", name: "Davide Conti", email: "davide@conti.it", company: "Conti Consulting", city: "Roma", interestedProgram: "margin-pilot", status: "contattato" },
   { id: "c-3", name: "Giulia Serra", email: "giulia@serra.it", company: "Serra Lab", city: "Torino", interestedProgram: "quality-pilot", status: "nuovo" }
+];
+
+export const demoMailingContacts: MailingContact[] = [
+  {
+    id: "ml-001",
+    nome: "Elena",
+    cognome: "Neri",
+    email: "elena@nerifood.it",
+    telefono: "+39 050 000000",
+    azienda_ristorante: "Neri Food",
+    ruolo: "ristoratore",
+    programma_interessato: "LaunchPilot",
+    stato: "lead",
+    consenso_marketing: false,
+    fonte_contatto: "consulenza",
+    tag: "apertura ristorante, demo richiesta",
+    note: "Interessata a prefattibilità e business plan.",
+    brevo_contact_id: "",
+    mailchimp_contact_id: "",
+    created_at: "2026-05-20",
+    updated_at: "2026-05-20"
+  },
+  {
+    id: "ml-002",
+    nome: "Davide",
+    cognome: "Conti",
+    email: "davide@conti.it",
+    telefono: "",
+    azienda_ristorante: "Conti Consulting",
+    ruolo: "consulente",
+    programma_interessato: "MarginPilot",
+    stato: "da_ricontattare",
+    consenso_marketing: true,
+    fonte_contatto: "evento",
+    tag: "consulente, food cost",
+    note: "Richiede materiale per clienti horeca.",
+    brevo_contact_id: "",
+    mailchimp_contact_id: "",
+    created_at: "2026-05-18",
+    updated_at: "2026-05-19"
+  }
 ];
 
 export const demoAuditLogs: AuditLog[] = [

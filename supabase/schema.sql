@@ -175,6 +175,31 @@ create table if not exists public.contacts (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.mailing_contacts (
+  id uuid primary key default gen_random_uuid(),
+  nome text,
+  cognome text,
+  email text not null unique,
+  telefono text,
+  azienda_ristorante text,
+  ruolo text not null default 'ristoratore',
+  programma_interessato text not null default 'MarginPilot',
+  stato text not null default 'lead',
+  consenso_marketing boolean not null default false,
+  fonte_contatto text not null default 'inserimento_manuale',
+  tag text,
+  note text,
+  brevo_contact_id text,
+  mailchimp_contact_id text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (email <> ''),
+  check (ruolo in ('ristoratore', 'consulente', 'franchisor', 'fornitore', 'altro')),
+  check (programma_interessato in ('MarginPilot', 'LaunchPilot', 'QualityPilot', 'Master Admin Suite', 'Altro')),
+  check (stato in ('lead', 'prova_gratuita', 'cliente_attivo', 'ex_cliente', 'da_ricontattare', 'non_interessato')),
+  check (fonte_contatto in ('inserimento_manuale', 'import_csv', 'sito_web', 'evento', 'consulenza', 'altro'))
+);
+
 create table if not exists public.audit_logs (
   id uuid primary key default gen_random_uuid(),
   actor_id uuid references public.profiles(id) on delete set null,
@@ -205,6 +230,8 @@ create index if not exists licenses_access_status_idx on public.licenses(user_pr
 create index if not exists payments_profile_status_idx on public.payments(profile_id, status);
 create index if not exists invoices_profile_status_idx on public.invoices(profile_id, status);
 create index if not exists contacts_status_idx on public.contacts(status);
+create index if not exists mailing_contacts_email_idx on public.mailing_contacts(lower(email));
+create index if not exists mailing_contacts_filters_idx on public.mailing_contacts(ruolo, programma_interessato, stato, fonte_contatto);
 create index if not exists audit_logs_created_at_idx on public.audit_logs(created_at desc);
 create index if not exists projects_owner_program_idx on public.projects(owner_id, program_id);
 
@@ -235,6 +262,9 @@ create trigger touch_licenses_updated_at before update on public.licenses for ea
 
 drop trigger if exists touch_projects_updated_at on public.projects;
 create trigger touch_projects_updated_at before update on public.projects for each row execute function public.touch_updated_at();
+
+drop trigger if exists touch_mailing_contacts_updated_at on public.mailing_contacts;
+create trigger touch_mailing_contacts_updated_at before update on public.mailing_contacts for each row execute function public.touch_updated_at();
 
 create or replace function public.current_user_is_admin()
 returns boolean
@@ -302,6 +332,7 @@ alter table public.plans enable row level security;
 alter table public.payments enable row level security;
 alter table public.invoices enable row level security;
 alter table public.contacts enable row level security;
+alter table public.mailing_contacts enable row level security;
 alter table public.audit_logs enable row level security;
 alter table public.projects enable row level security;
 
@@ -323,6 +354,7 @@ drop policy if exists "invoices admin manage" on public.invoices;
 drop policy if exists "invoices users read own" on public.invoices;
 drop policy if exists "contacts public insert" on public.contacts;
 drop policy if exists "contacts admin manage" on public.contacts;
+drop policy if exists "mailing contacts admin manage" on public.mailing_contacts;
 drop policy if exists "audit admin read" on public.audit_logs;
 drop policy if exists "audit admin insert" on public.audit_logs;
 drop policy if exists "projects admin manage" on public.projects;
@@ -361,6 +393,7 @@ create policy "invoices users read own" on public.invoices for select to authent
 
 create policy "contacts public insert" on public.contacts for insert to anon, authenticated with check (true);
 create policy "contacts admin manage" on public.contacts for all to authenticated using (public.current_user_is_admin()) with check (public.current_user_is_admin());
+create policy "mailing contacts admin manage" on public.mailing_contacts for all to authenticated using (public.current_user_is_admin()) with check (public.current_user_is_admin());
 
 create policy "audit admin read" on public.audit_logs for select to authenticated using (public.current_user_is_admin());
 create policy "audit admin insert" on public.audit_logs for insert to authenticated with check (public.current_user_is_admin());
@@ -389,6 +422,7 @@ grant select, insert, update, delete on
   public.payments,
   public.invoices,
   public.contacts,
+  public.mailing_contacts,
   public.audit_logs,
   public.projects
 to authenticated;
@@ -402,6 +436,7 @@ grant select, insert, update, delete on
   public.payments,
   public.invoices,
   public.contacts,
+  public.mailing_contacts,
   public.audit_logs,
   public.projects
 to service_role;
