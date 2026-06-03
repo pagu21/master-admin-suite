@@ -234,7 +234,9 @@ export const demoUsers: AdminUser[] = [
 
 export const demoPlans: Plan[] = [
   { code: "launch-monthly", program: "launch-pilot", name: "Launch mensile", type: "monthly_subscription", price: 89, currency: "EUR", projectLimit: null, active: true },
+  { code: "launch-pack-1", program: "launch-pilot", name: "Launch pacchetto 1 progetto", type: "project_pack_1", price: 99, currency: "EUR", projectLimit: 1, active: true },
   { code: "launch-pack-3", program: "launch-pilot", name: "Launch pacchetto 3 progetti", type: "project_pack_3", price: 249, currency: "EUR", projectLimit: 3, active: true },
+  { code: "launch-pack-5", program: "launch-pilot", name: "Launch pacchetto 5 progetti", type: "project_pack_5", price: 390, currency: "EUR", projectLimit: 5, active: true },
   { code: "margin-annual", program: "margin-pilot", name: "Margin annuale", type: "annual_subscription", price: 790, currency: "EUR", projectLimit: null, active: true },
   { code: "quality-free", program: "quality-pilot", name: "Quality demo", type: "free", price: 0, currency: "EUR", projectLimit: 1, active: true }
 ];
