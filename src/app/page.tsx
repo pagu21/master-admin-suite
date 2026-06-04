@@ -17,8 +17,8 @@ const solutions = [
   {
     name: "LaunchPilot",
     eyebrow: "Nuove aperture",
-    text: "Valuta se un progetto è sostenibile prima di investire, con scenari e business plan professionali.",
-    items: ["sostenibilità economica", "investimenti", "business plan", "scenari"],
+    text: "Valuta se un progetto è sostenibile prima di investire, con scenari e analisi economico-finanziarie professionali.",
+    items: ["sostenibilità economica", "investimenti", "fattibilità economico-finanziaria", "scenari"],
     accent: "bg-[#ecfdf3] text-[#0f766e]",
     logo: "/screenshots/launchpilot-brand.png",
     screenshot: "/screenshots/suite-break-even.png"
@@ -86,7 +86,7 @@ const pricingPlans = [
     name: "Professionale",
     label: "Più scelto",
     text: "Per ristoratori, consulenti ed esperti che vogliono usare più strumenti e gestire analisi complete.",
-    features: ["più programmi Pilot", "report professionali", "scenari e simulazioni", "pacchetti LaunchPilot 1, 3 o 5 progetti", "gestione licenze da Master Admin"],
+    features: ["più programmi Pilot", "report professionali", "scenari e simulazioni", "pacchetti LaunchPilot 1, 3 o 5 progetti", "licenze e profili configurabili"],
     cta: "Richiedi una demo"
   },
   {
@@ -127,7 +127,7 @@ const methodSteps = [
   {
     action: "APRIRE",
     product: "LaunchPilot",
-    text: "Valuta investimenti, sostenibilità, fabbisogno e business plan prima di partire."
+    text: "Valuta investimenti, sostenibilità, fabbisogno e fattibilità economico-finanziaria prima di partire."
   },
   {
     action: "GESTIRE",
@@ -182,7 +182,7 @@ const featureRows = [
   { label: "Food Cost Consuntivo", margin: true, launch: false, quality: false },
   { label: "Budget", margin: true, launch: false, quality: false },
   { label: "KPI", margin: true, launch: true, quality: true },
-  { label: "Business Plan", margin: false, launch: true, quality: false },
+  { label: "Fattibilità economico-finanziaria", margin: false, launch: true, quality: false },
   { label: "Break Even", margin: true, launch: true, quality: false },
   { label: "Simulazioni", margin: true, launch: true, quality: true },
   { label: "Procedure operative", margin: false, launch: false, quality: true },
@@ -219,7 +219,7 @@ const moduleFunctions = [
       "ricavi, costi e scenari",
       "smart break even point",
       "what if",
-      "business plan bancabile",
+      "business plan economico-finanziario",
       "report per consulenti e ristoratori"
     ]
   },
@@ -299,7 +299,7 @@ export default function Home() {
             <a href="#contatto" className="hover:text-[#175cd3]">Contattaci</a>
           </nav>
           <div className="flex items-center gap-2">
-            <Link href="/login" className="hidden rounded-full border border-[#c7d7ee] bg-white px-4 py-2 text-sm font-bold text-[#123c69] shadow-sm transition hover:border-[#175cd3] sm:inline-flex">
+            <Link href="/programmi" className="hidden rounded-full border border-[#c7d7ee] bg-white px-4 py-2 text-sm font-bold text-[#123c69] shadow-sm transition hover:border-[#175cd3] sm:inline-flex">
               Area clienti
             </Link>
             <a href="#contatto" className="inline-flex items-center gap-2 rounded-full bg-[#123c69] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-[#175cd3]">
@@ -319,14 +319,14 @@ export default function Home() {
             Trasforma i numeri del tuo ristorante in decisioni migliori
           </h1>
           <p className="mt-6 max-w-2xl text-xl leading-8 text-[#516079]">
-            Controllo di gestione, budget, business plan e standard operativi in un'unica piattaforma progettata per ristoratori e consulenti.
+            Controllo di gestione, budget, fattibilità economico-finanziaria e standard operativi in un'unica piattaforma progettata per ristoratori e consulenti.
           </p>
           <div className="mt-9 flex flex-wrap gap-3">
             <a href="#contatto" className="inline-flex items-center gap-2 rounded-full bg-[#123c69] px-6 py-3 text-base font-bold text-white shadow-sm transition hover:bg-[#175cd3]">
               Richiedi una Demo
               <ArrowRight className="h-5 w-5" />
             </a>
-            <Link href="/login" className="inline-flex items-center gap-2 rounded-full border border-[#c7d7ee] bg-white px-6 py-3 text-base font-bold text-[#123c69] shadow-sm transition hover:border-[#175cd3]">
+            <Link href="/programmi" className="inline-flex items-center gap-2 rounded-full border border-[#c7d7ee] bg-white px-6 py-3 text-base font-bold text-[#123c69] shadow-sm transition hover:border-[#175cd3]">
               <LockKeyhole className="h-5 w-5" />
               Area clienti
             </Link>
@@ -583,11 +583,11 @@ export default function Home() {
             <p className="text-sm font-black uppercase tracking-[0.18em] text-[#175cd3]">Prezzi</p>
             <h2 className="mt-3 text-4xl font-black tracking-tight md:text-5xl">Piani, promozioni e licenze sempre sotto controllo</h2>
             <p className="mt-4 text-lg leading-8 text-[#516079]">
-              La landing presenta le soluzioni in modo chiaro, mentre la parte commerciale può essere gestita dal Master Admin: prezzi, promozioni, licenze, pagamenti, fatture e accessi.
+              Suite Pilot può essere attivata con formule diverse in base al profilo: ristoratore, consulente, gruppo o attività con più punti vendita. Ogni accesso mostra solo i programmi, le funzioni e le licenze previste.
             </p>
           </div>
-          <Link href="/login" className="inline-flex w-fit items-center gap-2 rounded-full border border-[#c7d7ee] bg-white px-5 py-3 text-sm font-bold text-[#123c69] shadow-sm">
-            Area riservata
+          <Link href="/registrazione" className="inline-flex w-fit items-center gap-2 rounded-full border border-[#c7d7ee] bg-white px-5 py-3 text-sm font-bold text-[#123c69] shadow-sm">
+            Richiedi attivazione
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -721,7 +721,7 @@ export default function Home() {
               <ArrowRight className="h-5 w-5" />
             </button>
             <p className="text-xs font-semibold leading-5 text-[#667085]">
-              I dati saranno usati solo per ricontattarti in merito alla richiesta. In seguito il modulo potrà essere collegato al CRM commerciale del Master Admin.
+              I dati saranno usati solo per ricontattarti in merito alla richiesta e proporti il profilo, la licenza e il programma più adatti alla tua attività.
             </p>
           </form>
         </div>
@@ -778,8 +778,11 @@ export default function Home() {
               Richiedi una Demo
               <ArrowRight className="h-5 w-5" />
             </a>
-            <Link href="/login" className="inline-flex items-center gap-2 rounded-full border border-white/30 px-6 py-3 text-base font-black text-white">
+            <Link href="/programmi" className="inline-flex items-center gap-2 rounded-full border border-white/30 px-6 py-3 text-base font-black text-white">
               Area clienti
+            </Link>
+            <Link href="/registrazione" className="inline-flex items-center gap-2 rounded-full border border-white/30 px-6 py-3 text-base font-black text-white">
+              Richiedi attivazione
             </Link>
           </div>
         </div>
@@ -791,8 +794,8 @@ export default function Home() {
             <p className="mt-1 text-sm font-semibold text-[#667085]">Controllo, sviluppo e qualità per la ristorazione.</p>
           </div>
           <div className="flex flex-wrap gap-3 text-sm font-bold text-[#516079]">
-            <Link href="/login" className="hover:text-[#175cd3]">Area clienti</Link>
-            <Link href="/admin" className="hover:text-[#175cd3]">Area master</Link>
+            <Link href="/programmi" className="hover:text-[#175cd3]">Area clienti</Link>
+            <Link href="/registrazione" className="hover:text-[#175cd3]">Registrazione</Link>
             <a href="#contatto" className="hover:text-[#175cd3]">Contattaci</a>
             <Link href="/privacy" className="hover:text-[#175cd3]">Privacy Policy</Link>
           </div>

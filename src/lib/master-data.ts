@@ -135,7 +135,7 @@ export const programs: Program[] = [
   {
     slug: "launch-pilot",
     name: "Launch Pilot",
-    description: "Prefattibilità economica, business plan e sostenibilità finanziaria.",
+    description: "Prefattibilità economico-finanziaria, investimenti e sostenibilità del progetto.",
     loginUrl: "https://launchpilot-olive.vercel.app/login",
     accent: "from-teal-600 to-emerald-400",
     active: true
@@ -267,7 +267,7 @@ export const demoMailingContacts: MailingContact[] = [
     consenso_marketing: false,
     fonte_contatto: "consulenza",
     tag: "apertura ristorante, demo richiesta",
-    note: "Interessata a prefattibilità e business plan.",
+    note: "Interessata a prefattibilità e analisi economico-finanziaria.",
     brevo_contact_id: "",
     mailchimp_contact_id: "",
     created_at: "2026-05-20",
