@@ -10,6 +10,7 @@ import {
   LucideIcon,
   Settings,
   ShieldCheck,
+  UserPlus,
   UsersRound
 } from "lucide-react";
 
@@ -90,6 +91,25 @@ export type Contact = {
   status: "nuovo" | "contattato" | "interessato" | "cliente" | "sospeso" | "non_interessato";
 };
 
+export type RegistrationRequest = {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  company: string;
+  city: string;
+  programs: string[];
+  profile: string;
+  license: string;
+  notes: string;
+  privacyAccepted: boolean;
+  dataAccepted: boolean;
+  contractAccepted: boolean;
+  marketingAccepted: boolean;
+  status: "nuovo" | "contattato" | "cliente" | "non_interessato";
+  createdAt: string;
+};
+
 export type MailingContactRole = "ristoratore" | "consulente" | "franchisor" | "fornitore" | "altro";
 export type MailingContactProgram = "MarginPilot" | "LaunchPilot" | "QualityPilot" | "Master Admin Suite" | "Altro";
 export type MailingContactStatus = "lead" | "prova_gratuita" | "cliente_attivo" | "ex_cliente" | "da_ricontattare" | "non_interessato";
@@ -152,6 +172,7 @@ export const programs: Program[] = [
 
 export const sidebarItems: Array<{ id: string; label: string; icon: LucideIcon }> = [
   { id: "dashboard", label: "Inizio", icon: LayoutDashboard },
+  { id: "registration-requests", label: "Richieste accesso", icon: UserPlus },
   { id: "users", label: "Clienti e utenti", icon: UsersRound },
   { id: "profiles", label: "Profili e ruoli", icon: ShieldCheck },
   { id: "programs", label: "Programmi", icon: Building2 },
@@ -251,6 +272,27 @@ export const demoContacts: Contact[] = [
   { id: "c-1", name: "Elena Neri", email: "elena@nerifood.it", company: "Neri Food", city: "Pisa", interestedProgram: "launch-pilot", status: "interessato" },
   { id: "c-2", name: "Davide Conti", email: "davide@conti.it", company: "Conti Consulting", city: "Roma", interestedProgram: "margin-pilot", status: "contattato" },
   { id: "c-3", name: "Giulia Serra", email: "giulia@serra.it", company: "Serra Lab", city: "Torino", interestedProgram: "quality-pilot", status: "nuovo" }
+];
+
+export const demoRegistrationRequests: RegistrationRequest[] = [
+  {
+    id: "rr-001",
+    fullName: "Elena Neri",
+    email: "elena@nerifood.it",
+    phone: "+39 333 000000",
+    company: "Neri Food",
+    city: "Pisa",
+    programs: ["LaunchPilot", "MarginPilot"],
+    profile: "Ristoratore",
+    license: "Demo",
+    notes: "Vorrei capire quale programma attivare per una nuova apertura.",
+    privacyAccepted: true,
+    dataAccepted: true,
+    contractAccepted: true,
+    marketingAccepted: false,
+    status: "nuovo",
+    createdAt: "2026-06-05"
+  }
 ];
 
 export const demoMailingContacts: MailingContact[] = [

@@ -31,6 +31,7 @@ import {
   demoMailingContacts,
   demoPayments,
   demoPlans,
+  demoRegistrationRequests,
   demoUsers,
   euro,
   licenseLabel,
@@ -43,7 +44,8 @@ import {
   type LicenseType,
   type MailingContact,
   type Payment,
-  type ProgramSlug
+  type ProgramSlug,
+  type RegistrationRequest
 } from "@/lib/master-data";
 import { createSupabaseBrowserClient, hasSupabaseBrowserConfig } from "@/lib/supabase/client";
 
@@ -260,6 +262,7 @@ export function AdminSuite() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [users, setUsers] = useState<AdminUser[]>(demoUsers);
   const [payments, setPayments] = useState<Payment[]>(demoPayments);
+  const [registrationRequests, setRegistrationRequests] = useState<RegistrationRequest[]>(demoRegistrationRequests);
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
   const [createUserMessage, setCreateUserMessage] = useState("");
   const [programFilter, setProgramFilter] = useState<ProgramSlug | "all">("all");
@@ -282,6 +285,21 @@ export function AdminSuite() {
       }
     }
     loadUsers().catch(() => undefined);
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadRegistrationRequests() {
+      const response = await fetch("/api/admin/registration-requests", { cache: "no-store" });
+      const result = (await response.json().catch(() => null)) as { requests?: RegistrationRequest[] } | null;
+      if (!ignore && response.ok && result?.requests) {
+        setRegistrationRequests(result.requests.length ? result.requests : demoRegistrationRequests);
+      }
+    }
+    loadRegistrationRequests().catch(() => undefined);
     return () => {
       ignore = true;
     };
@@ -423,6 +441,18 @@ export function AdminSuite() {
     setResetPasswordUser(user);
   }
 
+  async function handleUpdateRegistrationRequestStatus(request: RegistrationRequest, status: RegistrationRequest["status"]) {
+    setRegistrationRequests((current) => current.map((item) => (item.id === request.id ? { ...item, status } : item)));
+    const response = await fetch("/api/admin/registration-requests", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: request.id, status })
+    });
+    if (!response.ok) {
+      await response.json().catch(() => null);
+    }
+  }
+
   async function confirmResetPassword() {
     if (!resetPasswordUser) return;
 
@@ -514,6 +544,13 @@ export function AdminSuite() {
         <div className="mx-auto max-w-7xl px-6 py-7">
           <MobileNav activeSection={activeSection} setActiveSection={setActiveSection} />
           {activeSection === "dashboard" && <DashboardSection onNavigate={setActiveSection} onCreateUser={() => setIsCreateUserOpen(true)} />}
+          {activeSection === "registration-requests" && (
+            <RegistrationRequestsSection
+              requests={registrationRequests}
+              onUpdateStatus={handleUpdateRegistrationRequestStatus}
+              onCreateUser={() => setIsCreateUserOpen(true)}
+            />
+          )}
           {activeSection === "users" && (
             <UsersSection
               users={filteredUsers}
@@ -620,6 +657,13 @@ function DashboardSection({ onNavigate, onCreateUser }: { onNavigate: (section: 
   ];
   const quickActions = [
     {
+      title: "Richieste accesso",
+      description: "Controlla chi ha richiesto registrazione, programmi, profilo, licenza e consensi.",
+      icon: UserPlus,
+      tone: "bg-[#f8f5ff] text-[#5925dc] border-[#d6bbfb]",
+      action: () => onNavigate("registration-requests")
+    },
+    {
       title: "Crea un cliente",
       description: "Inserisci email, password, programma, profilo e licenza in un unico passaggio.",
       icon: UserPlus,
@@ -668,7 +712,7 @@ function DashboardSection({ onNavigate, onCreateUser }: { onNavigate: (section: 
             Nuovo cliente
           </button>
         </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {quickActions.map((item) => {
             const Icon = item.icon;
             return (
@@ -1429,6 +1473,154 @@ function InvoicesSection() {
         </p>
       </div>
     </Panel>
+  );
+}
+
+function RegistrationRequestsSection({
+  requests,
+  onUpdateStatus,
+  onCreateUser
+}: {
+  requests: RegistrationRequest[];
+  onUpdateStatus: (request: RegistrationRequest, status: RegistrationRequest["status"]) => void;
+  onCreateUser: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const filteredRequests = useMemo(() => {
+    const cleanQuery = query.trim().toLowerCase();
+    return requests.filter((request) => {
+      const searchable = [request.fullName, request.email, request.company, request.city, request.profile, request.license, request.programs.join(" ")]
+        .join(" ")
+        .toLowerCase();
+      if (cleanQuery && !searchable.includes(cleanQuery)) return false;
+      if (statusFilter !== "all" && request.status !== statusFilter) return false;
+      return true;
+    });
+  }, [query, requests, statusFilter]);
+
+  return (
+    <Panel title="Richieste accesso">
+      <div className="mb-5 rounded-3xl border border-[#b2ccff] bg-[#eef4ff] p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="text-lg font-black text-[#123c69]">Richieste arrivate dalla pagina Registrazione</h3>
+            <p className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-[#516079]">
+              Qui trovi i clienti che hanno scelto programmi, profilo, licenza e consensi. Da questa pagina controlli la richiesta, cambi lo stato e poi crei l'utente con le credenziali corrette.
+            </p>
+          </div>
+          <button onClick={onCreateUser} className="inline-flex w-fit items-center gap-2 rounded-full bg-[#123c69] px-5 py-3 text-sm font-black text-white">
+            <UserPlus className="h-4 w-4" />
+            Crea utente
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-5 grid gap-3 md:grid-cols-[1fr_220px]">
+        <label className="relative">
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98a2b3]" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Cerca nome, email, azienda, programma o licenza"
+            className="h-12 w-full rounded-2xl border border-[#d0d5dd] bg-white pl-11 pr-4 text-sm font-semibold outline-none focus:border-[#175cd3] focus:ring-2 focus:ring-[#d1e0ff]"
+          />
+        </label>
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          className="h-12 rounded-2xl border border-[#d0d5dd] bg-white px-4 text-sm font-bold text-[#344054] outline-none focus:border-[#175cd3] focus:ring-2 focus:ring-[#d1e0ff]"
+        >
+          <option value="all">Tutti gli stati</option>
+          <option value="nuovo">Nuovo</option>
+          <option value="contattato">Contattato</option>
+          <option value="cliente">Cliente</option>
+          <option value="non_interessato">Non interessato</option>
+        </select>
+      </div>
+
+      <div className="grid gap-4">
+        {filteredRequests.map((request) => (
+          <article key={request.id} className="rounded-[26px] border border-[#d9e2ef] bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-xl font-black">{request.fullName}</h3>
+                  <span className={`rounded-full border px-3 py-1 text-xs font-black ${statusClasses[request.status] ?? statusClasses.nuovo}`}>
+                    {request.status.replace("_", " ")}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm font-semibold leading-6 text-[#667085]">
+                  {request.email} · {request.phone || "telefono non indicato"} · {request.company} · {request.city || "città non indicata"}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={request.status}
+                  onChange={(event) => onUpdateStatus(request, event.target.value as RegistrationRequest["status"])}
+                  className="h-10 rounded-xl border border-[#d0d5dd] bg-white px-3 text-sm font-bold text-[#344054]"
+                >
+                  <option value="nuovo">Nuovo</option>
+                  <option value="contattato">Contattato</option>
+                  <option value="cliente">Cliente</option>
+                  <option value="non_interessato">Non interessato</option>
+                </select>
+                <button onClick={onCreateUser} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#123c69] px-4 text-sm font-black text-white">
+                  <UserPlus className="h-4 w-4" />
+                  Crea cliente
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-4">
+              <InfoBox label="Programmi" value={request.programs.join(", ") || "-"} />
+              <InfoBox label="Profilo" value={request.profile || "-"} />
+              <InfoBox label="Licenza" value={request.license || "-"} />
+              <InfoBox label="Data richiesta" value={new Date(request.createdAt).toLocaleDateString("it-IT")} />
+            </div>
+
+            {request.notes ? (
+              <div className="mt-4 rounded-2xl bg-[#f8fafc] p-4 text-sm font-semibold leading-6 text-[#516079] ring-1 ring-[#e4eaf3]">
+                <span className="font-black text-[#101828]">Note: </span>
+                {request.notes}
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex flex-wrap gap-2 text-xs font-black">
+              <ConsentBadge active={request.privacyAccepted} label="Privacy" />
+              <ConsentBadge active={request.dataAccepted} label="Trattamento dati" />
+              <ConsentBadge active={request.contractAccepted} label="Contratto" />
+              <ConsentBadge active={request.marketingAccepted} label="Marketing" />
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {filteredRequests.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-[#c7d7ee] bg-[#f8fafc] p-8 text-center">
+          <h3 className="text-xl font-black">Nessuna richiesta trovata</h3>
+          <p className="mt-2 text-sm font-semibold text-[#667085]">Quando un cliente compila la registrazione, la richiesta apparirà qui.</p>
+        </div>
+      ) : null}
+    </Panel>
+  );
+}
+
+function InfoBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-[#f8fafc] p-4 ring-1 ring-[#e4eaf3]">
+      <p className="text-xs font-black uppercase tracking-[0.12em] text-[#667085]">{label}</p>
+      <p className="mt-2 text-sm font-black text-[#101828]">{value}</p>
+    </div>
+  );
+}
+
+function ConsentBadge({ active, label }: { active: boolean; label: string }) {
+  return (
+    <span className={`rounded-full px-3 py-1 ${active ? "bg-[#ecfdf3] text-[#067647]" : "bg-[#f2f4f7] text-[#667085]"}`}>
+      {active ? "OK" : "NO"} · {label}
+    </span>
   );
 }
 

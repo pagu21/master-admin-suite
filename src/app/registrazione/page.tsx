@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
 
 const programs = [
@@ -24,7 +25,7 @@ const programs = [
 
 const profileOptions = [
   "Ristoratore",
-  "Consulente commerciale e della ristorazione",
+  "Consulente",
   "Gruppo / più punti vendita",
   "Franchising",
   "Hotel con ristorazione",
@@ -32,7 +33,7 @@ const profileOptions = [
 ];
 
 const licenseOptions = [
-  "Demo guidata",
+  "Demo",
   "Abbonamento mensile",
   "Abbonamento annuale",
   "LaunchPilot pack 1 progetto",
@@ -44,6 +45,8 @@ const licenseOptions = [
 
 export default function RegistrationPage() {
   const [selectedPrograms, setSelectedPrograms] = useState<string[]>(["marginpilot"]);
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [acceptedContract, setAcceptedContract] = useState(false);
   const [acceptedData, setAcceptedData] = useState(false);
@@ -65,6 +68,52 @@ export default function RegistrationPage() {
   }
 
   const canSubmit = selectedPrograms.length > 0 && acceptedPrivacy && acceptedContract && acceptedData;
+
+  async function submitRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSubmit) return;
+
+    const formData = new FormData(event.currentTarget);
+    setSubmitting(true);
+    setMessage("");
+
+    const response = await fetch("/api/registration-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName: String(formData.get("nome") || ""),
+        lastName: String(formData.get("cognome") || ""),
+        email: String(formData.get("email") || ""),
+        phone: String(formData.get("telefono") || ""),
+        company: String(formData.get("azienda") || ""),
+        city: String(formData.get("citta") || ""),
+        programs: programs.filter((program) => selectedPrograms.includes(program.id)).map((program) => program.name),
+        profile: String(formData.get("profilo") || ""),
+        license: String(formData.get("licenza") || ""),
+        notes: String(formData.get("note") || ""),
+        privacyAccepted: acceptedPrivacy,
+        dataAccepted: acceptedData,
+        contractAccepted: acceptedContract,
+        marketingAccepted: acceptedMarketing
+      })
+    });
+
+    const result = (await response.json().catch(() => null)) as { error?: string } | null;
+    setSubmitting(false);
+
+    if (!response.ok) {
+      setMessage(result?.error || "Richiesta non inviata. Controlla i dati e riprova.");
+      return;
+    }
+
+    event.currentTarget.reset();
+    setSelectedPrograms(["marginpilot"]);
+    setAcceptedPrivacy(false);
+    setAcceptedData(false);
+    setAcceptedContract(false);
+    setAcceptedMarketing(false);
+    setMessage("Richiesta inviata correttamente. Ti ricontatteremo per confermare profilo, licenza e accessi.");
+  }
 
   return (
     <main className="min-h-screen bg-[#f6f8fb] text-[#101828]">
@@ -96,9 +145,19 @@ export default function RegistrationPage() {
                 </div>
               ))}
             </div>
+            <div className="mt-5 rounded-[26px] border border-[#c7d7ee] bg-[#f8fbff] p-5">
+              <h2 className="text-lg font-black text-[#123c69]">Hai dubbi su cosa scegliere?</h2>
+              <p className="mt-2 text-sm font-semibold leading-6 text-[#667085]">
+                Se non sai quale programma, profilo o licenza indicare, puoi inviare comunque la richiesta o contattarci: ti aiutiamo a scegliere la soluzione più adatta.
+              </p>
+              <a href="mailto:info@guidipaolo.it?subject=Dubbi%20registrazione%20Suite%20Pilot" className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-black text-[#123c69] ring-1 ring-[#c7d7ee] transition hover:ring-[#175cd3]">
+                Contattaci
+                <ArrowRight className="h-4 w-4" />
+              </a>
+            </div>
           </aside>
 
-          <form action="mailto:info@guidipaolo.it" method="post" encType="text/plain" className="rounded-[34px] border border-[#d9e2ef] bg-white p-6 shadow-sm md:p-8">
+          <form onSubmit={submitRequest} className="rounded-[34px] border border-[#d9e2ef] bg-white p-6 shadow-sm md:p-8">
             <input type="hidden" name="programmi_selezionati" value={selectedProgramNames} />
             <input type="hidden" name="consenso_marketing" value={acceptedMarketing ? "si" : "no"} />
 
@@ -199,11 +258,16 @@ export default function RegistrationPage() {
               <p className="text-xs font-semibold leading-5 text-[#667085]">
                 La richiesta viene inviata per verifica. Gli accessi vengono abilitati solo dopo conferma del profilo e della licenza.
               </p>
-              <button type="submit" disabled={!canSubmit} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#123c69] px-6 py-3 text-base font-black text-white transition hover:bg-[#175cd3] disabled:cursor-not-allowed disabled:bg-[#98a2b3]">
-                Invia richiesta
+              <button type="submit" disabled={!canSubmit || submitting} className="inline-flex items-center justify-center gap-2 rounded-full bg-[#123c69] px-6 py-3 text-base font-black text-white transition hover:bg-[#175cd3] disabled:cursor-not-allowed disabled:bg-[#98a2b3]">
+                {submitting ? "Invio..." : "Invia richiesta"}
                 <ArrowRight className="h-5 w-5" />
               </button>
             </div>
+            {message ? (
+              <div className={`mt-5 rounded-2xl border p-4 text-sm font-bold leading-6 ${message.includes("correttamente") ? "border-[#abefc6] bg-[#ecfdf3] text-[#067647]" : "border-[#fecdca] bg-[#fef3f2] text-[#b42318]"}`}>
+                {message}
+              </div>
+            ) : null}
           </form>
         </div>
       </section>

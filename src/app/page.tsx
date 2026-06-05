@@ -798,6 +798,7 @@ export default function Home() {
             <Link href="/registrazione" className="hover:text-[#175cd3]">Registrazione</Link>
             <a href="#contatto" className="hover:text-[#175cd3]">Contattaci</a>
             <Link href="/privacy" className="hover:text-[#175cd3]">Privacy Policy</Link>
+            <Link href="/login" className="text-[#98a2b3] hover:text-[#175cd3]">Area riservata</Link>
           </div>
         </div>
       </footer>
