@@ -353,7 +353,7 @@ export function licenseLabel(type: LicenseType) {
     project_pack_1: "Pacchetto 1 progetto",
     project_pack_3: "Pacchetto 3 progetti",
     project_pack_5: "Pacchetto 5 progetti",
-    free: "Licenza gratuita",
+    free: "Demo",
     suspended: "Licenza sospesa"
   };
   return labels[type];

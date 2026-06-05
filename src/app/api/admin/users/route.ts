@@ -89,6 +89,21 @@ function licenseProjects(type: LicenseType, explicitValue?: number | null) {
   return null;
 }
 
+const DEMO_LICENSE_DAYS = 15;
+
+function addDaysIso(date: string, days: number) {
+  const base = new Date(`${date || new Date().toISOString().slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(base.getTime())) return null;
+  base.setDate(base.getDate() + days);
+  return base.toISOString().slice(0, 10);
+}
+
+function resolveEndDate(assignment: { licenseType: LicenseType; startDate: string; endDate?: string }) {
+  if (assignment.endDate) return assignment.endDate;
+  if (assignment.licenseType === "free") return addDaysIso(assignment.startDate, DEMO_LICENSE_DAYS);
+  return null;
+}
+
 function createAdminClient() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: {
@@ -293,6 +308,7 @@ export async function POST(request: Request) {
 
   for (const assignment of assignments) {
     const projectsPurchased = licenseProjects(assignment.licenseType, assignment.projectsPurchased);
+    const endDate = resolveEndDate(assignment);
     const licenseNotes = [
       assignment.notes?.trim(),
       assignment.permissionProfile ? `Profilo permessi: ${assignment.permissionProfile}` : "",
@@ -344,7 +360,7 @@ export async function POST(request: Request) {
       type: assignment.licenseType,
       status: assignment.licenseType === "suspended" ? "suspended" : "active",
       start_date: assignment.startDate,
-      end_date: assignment.endDate || null,
+      end_date: endDate,
       projects_purchased: projectsPurchased,
       projects_used: 0,
       notes: licenseNotes || null
@@ -365,7 +381,7 @@ export async function POST(request: Request) {
       projectsPurchased: projectsPurchased ?? undefined,
       projectsUsed: 0,
       startDate: assignment.startDate,
-      endDate: assignment.endDate || undefined
+      endDate: endDate || undefined
     });
   }
 

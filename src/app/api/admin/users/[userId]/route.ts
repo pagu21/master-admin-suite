@@ -103,6 +103,21 @@ function licenseProjects(type: LicenseType, explicitValue?: number | null) {
   return null;
 }
 
+const DEMO_LICENSE_DAYS = 15;
+
+function addDaysIso(date: string, days: number) {
+  const base = new Date(`${date || new Date().toISOString().slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(base.getTime())) return null;
+  base.setDate(base.getDate() + days);
+  return base.toISOString().slice(0, 10);
+}
+
+function resolveEndDate(assignment: { licenseType: LicenseType; startDate: string; endDate?: string }) {
+  if (assignment.endDate) return assignment.endDate;
+  if (assignment.licenseType === "free") return addDaysIso(assignment.startDate, DEMO_LICENSE_DAYS);
+  return null;
+}
+
 export async function PUT(request: Request, context: { params: Promise<{ userId: string }> }) {
   if (!hasServerConfig()) {
     return NextResponse.json({ error: "Configurazione Supabase incompleta." }, { status: 500 });
@@ -197,6 +212,7 @@ export async function PUT(request: Request, context: { params: Promise<{ userId:
 
     if (!assignment.enabled) continue;
 
+    const endDate = resolveEndDate(assignment);
     const licenseNotes = [
       payload.notes?.trim(),
       assignment.permissionProfile ? `Profilo permessi: ${assignment.permissionProfile}` : "",
@@ -210,7 +226,7 @@ export async function PUT(request: Request, context: { params: Promise<{ userId:
       type: assignment.licenseType,
       status: assignment.licenseType === "suspended" ? "suspended" : "active",
       start_date: assignment.startDate,
-      end_date: assignment.endDate || null,
+      end_date: endDate,
       projects_purchased: licenseProjects(assignment.licenseType, assignment.projectsPurchased),
       projects_used: 0,
       notes: licenseNotes || null

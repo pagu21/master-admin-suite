@@ -2447,6 +2447,8 @@ function splitCsvLine(line: string) {
   return cells.map((cell) => cell.trim().replace(/^"|"$/g, ""));
 }
 
+const DEMO_LICENSE_DAYS = 15;
+
 function SettingsSection() {
   const [config, setConfig] = useState({
     marginUrl: programs.find((program) => program.slug === "margin-pilot")?.loginUrl || "",
@@ -2454,7 +2456,7 @@ function SettingsSection() {
     qualityUrl: programs.find((program) => program.slug === "quality-pilot")?.loginUrl || "",
     systemEmail: "assistenza@suitepilot.it",
     commercialEmail: "commerciale@suitepilot.it",
-    demoDays: 14,
+    demoDays: DEMO_LICENSE_DAYS,
     sessionHours: 8,
     suiteName: "Suite Pilot",
     reportHeading: "Suite Pilot - strumenti professionali per la ristorazione"
@@ -2539,7 +2541,7 @@ function SettingsSection() {
           </div>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <label className="text-sm font-bold text-[#344054]">
-              Giorni demo
+              Durata demo standard
               <input
                 type="number"
                 min="0"
@@ -3132,6 +3134,15 @@ type ProgramAssignmentForm = {
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
+function addDaysIso(date: string, days: number) {
+  const base = new Date(`${date || todayIso()}T00:00:00`);
+  if (Number.isNaN(base.getTime())) return "";
+  base.setDate(base.getDate() + days);
+  return base.toISOString().slice(0, 10);
+}
+
+const demoEndDate = (startDate: string) => addDaysIso(startDate, DEMO_LICENSE_DAYS);
+
 const defaultAssignments = (): ProgramAssignmentForm[] => [
   {
     enabled: false,
@@ -3161,7 +3172,7 @@ const defaultAssignments = (): ProgramAssignmentForm[] => [
     role: "utente",
     licenseType: "free",
     startDate: todayIso(),
-    endDate: "",
+    endDate: demoEndDate(todayIso()),
     projectsPurchased: null,
     permissionProfile: "completo",
     marginAccessConfig: presetMarginAccessConfig("completo")
@@ -3206,15 +3217,19 @@ function assignmentsFromUser(user?: AdminUser | null): ProgramAssignmentForm[] {
 }
 
 function masterSecondaryAssignments(): ProgramAssignmentForm[] {
-  return defaultAssignments().map((assignment) => ({
-    ...assignment,
-    enabled: true,
-    role: "admin",
-    licenseType: assignment.program === "quality-pilot" ? "free" : "annual_subscription",
-    projectsPurchased: null,
-    permissionProfile: "completo",
-    marginAccessConfig: presetMarginAccessConfig("completo")
-  }));
+  return defaultAssignments().map((assignment) => {
+    const licenseType = assignment.program === "quality-pilot" ? "free" : "annual_subscription";
+    return {
+      ...assignment,
+      enabled: true,
+      role: "admin",
+      licenseType,
+      endDate: licenseType === "free" ? demoEndDate(assignment.startDate) : assignment.endDate,
+      projectsPurchased: null,
+      permissionProfile: "completo",
+      marginAccessConfig: presetMarginAccessConfig("completo")
+    };
+  });
 }
 
 function CreateUserModal({
@@ -3281,6 +3296,12 @@ function CreateUserModal({
                 ? 3
                 : 1
             : null;
+          if (value === "free") {
+            next.endDate = demoEndDate(next.startDate);
+          }
+        }
+        if (key === "startDate" && next.licenseType === "free") {
+          next.endDate = demoEndDate(String(value));
         }
         if (key === "permissionProfile") {
           next.marginAccessConfig = presetMarginAccessConfig(value as MarginAccessProfile);
@@ -3487,16 +3508,21 @@ function CreateUserModal({
                           <option value="project_pack_1">Pacchetto 1 progetto</option>
                           <option value="project_pack_3">Pacchetto 3 progetti</option>
                           <option value="project_pack_5">Pacchetto 5 progetti</option>
-                          <option value="free">Licenza gratuita</option>
+                          <option value="free">Demo</option>
                           <option value="suspended">Licenza sospesa</option>
                         </select>
                       </Field>
                       <Field label="Data inizio">
                         <input required type="date" value={assignment.startDate} onChange={(event) => updateAssignment(assignment.program, "startDate", event.target.value)} className="input" />
                       </Field>
-                      <Field label="Data fine">
+                      <Field label={assignment.licenseType === "free" ? "Fine demo (modificabile)" : "Data fine"}>
                         <input type="date" value={assignment.endDate} onChange={(event) => updateAssignment(assignment.program, "endDate", event.target.value)} className="input" />
                       </Field>
+                      {assignment.licenseType === "free" && (
+                        <div className="rounded-2xl border border-[#b2ccff] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#344054] md:col-span-2">
+                          La demo parte con durata standard di {DEMO_LICENSE_DAYS} giorni. La data finale resta modificabile prima del salvataggio.
+                        </div>
+                      )}
                       {isProjectPack && (
                         <Field label="Progetti acquistati">
                           <input
