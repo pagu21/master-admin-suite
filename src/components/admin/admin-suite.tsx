@@ -44,6 +44,7 @@ import {
   type LicenseType,
   type MailingContact,
   type Payment,
+  type Plan,
   type ProgramSlug,
   type RegistrationRequest
 } from "@/lib/master-data";
@@ -261,6 +262,7 @@ const mailingSources = ["inserimento_manuale", "import_csv", "sito_web", "evento
 export function AdminSuite() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [users, setUsers] = useState<AdminUser[]>(demoUsers);
+  const [plans, setPlans] = useState<Plan[]>(demoPlans);
   const [payments, setPayments] = useState<Payment[]>(demoPayments);
   const [registrationRequests, setRegistrationRequests] = useState<RegistrationRequest[]>(demoRegistrationRequests);
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
@@ -418,6 +420,10 @@ export function AdminSuite() {
     );
   }
 
+  function handleCreatePayment(payment: Payment) {
+    setPayments((current) => [payment, ...current]);
+  }
+
   function handleUnlinkPaymentClient(payment: Payment) {
     const confirmed = window.confirm(
       `Scollegare il cliente dal pagamento ${payment.id}?\n\nIl pagamento resta registrato, ma non sarà più associato alla scheda cliente.`
@@ -573,12 +579,13 @@ export function AdminSuite() {
           {activeSection === "profiles" && <ProfilesGuideSection />}
           {activeSection === "programs" && <ProgramsSection />}
           {activeSection === "licenses" && <LicensesSection users={users} onUpdateStatus={handleUpdateLicenseStatus} onEditUser={setEditingUser} />}
-          {activeSection === "plans" && <PlansSection />}
+          {activeSection === "plans" && <PlansSection plans={plans} setPlans={setPlans} />}
           {activeSection === "payments" && (
             <PaymentsSection
               payments={payments}
               users={users}
               onEditUser={setEditingUser}
+              onCreatePayment={handleCreatePayment}
               onUpdatePaymentStatus={handleUpdatePaymentStatus}
               onUnlinkPaymentClient={handleUnlinkPaymentClient}
             />
@@ -1313,9 +1320,51 @@ function LicensesSection({
   );
 }
 
-function PlansSection() {
+const licenseTypeOptions: Array<{ value: LicenseType; label: string }> = [
+  { value: "monthly_subscription", label: "Mensile" },
+  { value: "annual_subscription", label: "Annuale" },
+  { value: "project_pack_1", label: "Pacchetto 1 progetto" },
+  { value: "project_pack_3", label: "Pacchetto 3 progetti" },
+  { value: "project_pack_5", label: "Pacchetto 5 progetti" },
+  { value: "free", label: "Demo" },
+  { value: "suspended", label: "Sospesa" }
+];
+
+function newPlan(): Plan {
+  return {
+    code: `piano-${Date.now()}`,
+    program: "margin-pilot",
+    name: "Nuovo piano",
+    type: "monthly_subscription",
+    price: 0,
+    currency: "EUR",
+    projectLimit: null,
+    active: true
+  };
+}
+
+function PlansSection({ plans, setPlans }: { plans: Plan[]; setPlans: (plans: Plan[]) => void }) {
+  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+
+  function savePlan(plan: Plan) {
+    const normalizedPlan = {
+      ...plan,
+      code: plan.code.trim() || `piano-${Date.now()}`,
+      name: plan.name.trim() || "Piano senza nome"
+    };
+    const exists = plans.some((item) => item.code === normalizedPlan.code);
+    setPlans(exists ? plans.map((item) => (item.code === normalizedPlan.code ? normalizedPlan : item)) : [normalizedPlan, ...plans]);
+    setEditingPlan(null);
+  }
+
+  function deletePlan(plan: Plan) {
+    const confirmed = window.confirm(`Eliminare il piano "${plan.name}"?\n\nL'elenco verrà aggiornato in questa sessione.`);
+    if (!confirmed) return;
+    setPlans(plans.filter((item) => item.code !== plan.code));
+  }
+
   return (
-    <Panel title="Piani commerciali" action="Nuovo piano">
+    <Panel title="Piani commerciali" action="Nuovo piano" onAction={() => setEditingPlan(newPlan())}>
       <Table>
         <thead>
           <tr>
@@ -1325,10 +1374,11 @@ function PlansSection() {
             <Th>Prezzo</Th>
             <Th>Limite progetti</Th>
             <Th>Stato</Th>
+            <Th>Azioni</Th>
           </tr>
         </thead>
         <tbody>
-          {demoPlans.map((plan) => (
+          {plans.map((plan) => (
             <tr key={plan.code}>
               <Td><span className="font-bold">{plan.name}</span></Td>
               <Td>{programName(plan.program)}</Td>
@@ -1336,11 +1386,138 @@ function PlansSection() {
               <Td className="numeric">{euro(plan.price)}</Td>
               <Td>{plan.projectLimit ?? "Illimitati"}</Td>
               <Td><Badge value={plan.active ? "active" : "pending"} label={plan.active ? "Attivo" : "Non attivo"} /></Td>
+              <Td>
+                <div className="flex min-w-[180px] flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingPlan(plan)}
+                    className="rounded-xl border border-[#b2ccff] bg-white px-3 py-2 text-xs font-bold text-[#175cd3] hover:bg-[#eef4ff]"
+                  >
+                    Modifica
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deletePlan(plan)}
+                    className="rounded-xl border border-[#fecdca] bg-[#fef3f2] px-3 py-2 text-xs font-bold text-[#b42318] hover:bg-white"
+                  >
+                    Elimina
+                  </button>
+                </div>
+              </Td>
             </tr>
           ))}
         </tbody>
       </Table>
+      {editingPlan && <PlanModal plan={editingPlan} onClose={() => setEditingPlan(null)} onSave={savePlan} />}
     </Panel>
+  );
+}
+
+function PlanModal({ plan, onClose, onSave }: { plan: Plan; onClose: () => void; onSave: (plan: Plan) => void }) {
+  const [draft, setDraft] = useState<Plan>(plan);
+  const [projectLimitText, setProjectLimitText] = useState(plan.projectLimit == null ? "" : String(plan.projectLimit));
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onSave({
+      ...draft,
+      price: Number.isFinite(draft.price) ? draft.price : 0,
+      projectLimit: projectLimitText.trim() === "" ? null : Math.max(0, Number(projectLimitText) || 0)
+    });
+  }
+
+  return (
+    <ModalShell title="Piano commerciale" onClose={onClose}>
+      <p className="mb-5 text-sm leading-6 text-[#667085]">Crea o modifica un piano utilizzabile nelle licenze dei clienti.</p>
+      <form onSubmit={submit} className="grid gap-4">
+        <label className="grid gap-2 text-sm font-bold text-[#344054]">
+          Nome piano
+          <input
+            value={draft.name}
+            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+            className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+          />
+        </label>
+        <label className="grid gap-2 text-sm font-bold text-[#344054]">
+          Codice interno
+          <input
+            value={draft.code}
+            onChange={(event) => setDraft({ ...draft, code: event.target.value })}
+            className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+          />
+        </label>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="grid gap-2 text-sm font-bold text-[#344054]">
+            Programma
+            <select
+              value={draft.program}
+              onChange={(event) => setDraft({ ...draft, program: event.target.value as ProgramSlug })}
+              className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+            >
+              {programs.map((program) => (
+                <option key={program.slug} value={program.slug}>
+                  {program.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-bold text-[#344054]">
+            Tipo licenza
+            <select
+              value={draft.type}
+              onChange={(event) => setDraft({ ...draft, type: event.target.value as LicenseType })}
+              className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+            >
+              {licenseTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="grid gap-2 text-sm font-bold text-[#344054]">
+            Prezzo
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={draft.price}
+              onChange={(event) => setDraft({ ...draft, price: Number(event.target.value) })}
+              className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-bold text-[#344054]">
+            Limite progetti
+            <input
+              inputMode="numeric"
+              placeholder="Vuoto = illimitati"
+              value={projectLimitText}
+              onChange={(event) => setProjectLimitText(event.target.value)}
+              className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+            />
+          </label>
+        </div>
+        <label className="flex items-center gap-3 rounded-2xl border border-[#d9e2ef] bg-[#f8fbff] px-4 py-3 text-sm font-bold text-[#344054]">
+          <input
+            type="checkbox"
+            checked={draft.active}
+            onChange={(event) => setDraft({ ...draft, active: event.target.checked })}
+            className="h-4 w-4"
+          />
+          Piano attivo
+        </label>
+        <div className="flex flex-wrap justify-end gap-3">
+          <button type="button" onClick={onClose} className="rounded-full border border-[#d0d5dd] px-5 py-3 text-sm font-bold text-[#344054]">
+            Annulla
+          </button>
+          <button type="submit" className="rounded-full bg-[#123c69] px-5 py-3 text-sm font-bold text-white">
+            Salva piano
+          </button>
+        </div>
+      </form>
+    </ModalShell>
   );
 }
 
@@ -1355,15 +1532,19 @@ function PaymentsSection({
   payments,
   users,
   onEditUser,
+  onCreatePayment,
   onUpdatePaymentStatus,
   onUnlinkPaymentClient
 }: {
   payments: Payment[];
   users: AdminUser[];
   onEditUser: (user: AdminUser) => void;
+  onCreatePayment: (payment: Payment) => void;
   onUpdatePaymentStatus: (paymentId: string, status: Payment["status"]) => void;
   onUnlinkPaymentClient: (payment: Payment) => void;
 }) {
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
   function findPaymentUser(paymentUser: string) {
     const normalized = paymentUser.toLowerCase();
     return users.find((user) => {
@@ -1376,7 +1557,7 @@ function PaymentsSection({
   }
 
   return (
-    <Panel title="Pagamenti" action="Registra pagamento">
+    <Panel title="Pagamenti" action="Registra pagamento" onAction={() => setIsPaymentModalOpen(true)}>
       <div className="mb-4 rounded-3xl border border-[#d9e2ef] bg-[#f8fbff] p-4">
         <h3 className="text-sm font-black text-[#101828]">Gestione rapida pagamenti</h3>
         <p className="mt-1 text-sm leading-6 text-[#667085]">
@@ -1458,13 +1639,155 @@ function PaymentsSection({
           })}
         </tbody>
       </Table>
+      {isPaymentModalOpen && (
+        <PaymentModal
+          users={users}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onSave={(payment) => {
+            onCreatePayment(payment);
+            setIsPaymentModalOpen(false);
+          }}
+        />
+      )}
     </Panel>
+  );
+}
+
+function PaymentModal({
+  users,
+  onClose,
+  onSave
+}: {
+  users: AdminUser[];
+  onClose: () => void;
+  onSave: (payment: Payment) => void;
+}) {
+  const firstUser = users[0];
+  const [draft, setDraft] = useState<Payment>({
+    id: `pay-${Date.now()}`,
+    user: firstUser?.name || "",
+    program: "margin-pilot",
+    amount: 0,
+    currency: "EUR",
+    method: "Bonifico",
+    status: "pending",
+    paidAt: new Date().toISOString().slice(0, 10)
+  });
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!draft.user.trim()) {
+      window.alert("Inserisci o seleziona il cliente collegato al pagamento.");
+      return;
+    }
+    onSave({
+      ...draft,
+      id: draft.id.trim() || `pay-${Date.now()}`,
+      amount: Math.max(0, Number(draft.amount) || 0),
+      method: draft.method.trim() || "Da verificare"
+    });
+  }
+
+  return (
+    <ModalShell title="Registra pagamento" onClose={onClose}>
+      <p className="mb-5 text-sm leading-6 text-[#667085]">Aggiungi un pagamento e collegalo al cliente quando possibile.</p>
+      <form onSubmit={submit} className="grid gap-4">
+        <label className="grid gap-2 text-sm font-bold text-[#344054]">
+          Cliente
+          <input
+            list="payment-users"
+            value={draft.user}
+            onChange={(event) => setDraft({ ...draft, user: event.target.value })}
+            className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+          />
+          <datalist id="payment-users">
+            {users.map((user) => (
+              <option key={user.id} value={user.name}>
+                {user.email}
+              </option>
+            ))}
+          </datalist>
+        </label>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="grid gap-2 text-sm font-bold text-[#344054]">
+            Programma
+            <select
+              value={draft.program}
+              onChange={(event) => setDraft({ ...draft, program: event.target.value as ProgramSlug })}
+              className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+            >
+              {programs.map((program) => (
+                <option key={program.slug} value={program.slug}>
+                  {program.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-2 text-sm font-bold text-[#344054]">
+            Stato pagamento
+            <select
+              value={draft.status}
+              onChange={(event) => setDraft({ ...draft, status: event.target.value as Payment["status"] })}
+              className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+            >
+              {paymentStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <label className="grid gap-2 text-sm font-bold text-[#344054]">
+            Importo
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={draft.amount}
+              onChange={(event) => setDraft({ ...draft, amount: Number(event.target.value) })}
+              className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-bold text-[#344054]">
+            Metodo
+            <input
+              value={draft.method}
+              onChange={(event) => setDraft({ ...draft, method: event.target.value })}
+              className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-bold text-[#344054]">
+            Data
+            <input
+              type="date"
+              value={draft.paidAt}
+              onChange={(event) => setDraft({ ...draft, paidAt: event.target.value })}
+              className="h-12 rounded-2xl border border-[#d0d5dd] px-4 text-[#101828] outline-none focus:border-[#175cd3]"
+            />
+          </label>
+        </div>
+        <div className="flex flex-wrap justify-end gap-3">
+          <button type="button" onClick={onClose} className="rounded-full border border-[#d0d5dd] px-5 py-3 text-sm font-bold text-[#344054]">
+            Annulla
+          </button>
+          <button type="submit" className="rounded-full bg-[#123c69] px-5 py-3 text-sm font-bold text-white">
+            Salva pagamento
+          </button>
+        </div>
+      </form>
+    </ModalShell>
   );
 }
 
 function InvoicesSection() {
   return (
-    <Panel title="Fatturazione" action="Nuova fattura">
+    <Panel
+      title="Fatturazione"
+      action="Nuova fattura"
+      onAction={() => window.alert("La fattura manuale è predisposta. Per ora puoi gestire i dati fiscali del cliente dalla scheda utente; il collegamento al PDF arriverà con l'integrazione fatturazione.")}
+    >
       <div className="rounded-2xl border border-dashed border-[#b2ccff] bg-[#eef4ff] p-5">
         <h3 className="font-bold text-[#123c69]">Predisposizione pronta</h3>
         <p className="mt-2 text-sm leading-6 text-[#516079]">
@@ -2132,7 +2455,7 @@ function SettingsSection() {
     { title: "Scadenze", text: "Licenze a tempo controllate con data inizio, data fine e stato.", icon: CalendarClock }
   ];
   return (
-    <Panel title="Impostazioni sistema" action="Salva impostazioni">
+    <Panel title="Impostazioni sistema" action="Salva impostazioni" onAction={() => window.alert("Impostazioni salvate per questa sessione.")}>
       <div className="grid gap-4 md:grid-cols-2">
         {settings.map((setting) => {
           const Icon = setting.icon;
@@ -2150,8 +2473,23 @@ function SettingsSection() {
 }
 
 function AuditSection() {
+  function exportLogs() {
+    const headers = ["Evento", "Autore", "Oggetto", "Data"];
+    const rows = demoAuditLogs.map((log) => [log.event, log.actor, log.target, log.createdAt]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "audit-log-master-admin.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
-    <Panel title="Audit logs" action="Esporta log">
+    <Panel title="Audit logs" action="Esporta log" onAction={exportLogs}>
       <Table>
         <thead>
           <tr>
@@ -2182,7 +2520,7 @@ function Panel({ title, action, onAction, children }: { title: string; action?: 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
         {action && (
-          <button onClick={onAction} className="inline-flex items-center gap-2 rounded-full bg-[#123c69] px-4 py-2 text-sm font-bold text-white">
+          <button type="button" onClick={onAction} className="inline-flex items-center gap-2 rounded-full bg-[#123c69] px-4 py-2 text-sm font-bold text-white">
             <Plus className="h-4 w-4" />
             {action}
           </button>
