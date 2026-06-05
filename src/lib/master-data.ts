@@ -181,7 +181,7 @@ export const sidebarItems: Array<{ id: string; label: string; icon: LucideIcon }
   { id: "payments", label: "Pagamenti", icon: CreditCard },
   { id: "invoices", label: "Fatturazione", icon: FileText },
   { id: "contacts", label: "Mailing List", icon: BookOpenCheck },
-  { id: "settings", label: "Impostazioni", icon: Settings },
+  { id: "settings", label: "Sistema", icon: Settings },
   { id: "audit", label: "Registro attività", icon: ShieldCheck }
 ];
 

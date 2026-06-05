@@ -2448,25 +2448,144 @@ function splitCsvLine(line: string) {
 }
 
 function SettingsSection() {
-  const settings = [
-    { title: "Supabase Auth", text: "Accesso protetto con controllo ruolo master.", icon: LockKeyhole },
-    { title: "Stripe futuro", text: "Database e pagamenti sono già predisposti per collegare Stripe.", icon: CircleDollarSign },
-    { title: "Regole progetto", text: "Launch Pilot può bloccare nuovi progetti quando il pacchetto è esaurito.", icon: CheckCircle2 },
-    { title: "Scadenze", text: "Licenze a tempo controllate con data inizio, data fine e stato.", icon: CalendarClock }
-  ];
+  const [config, setConfig] = useState({
+    marginUrl: programs.find((program) => program.slug === "margin-pilot")?.loginUrl || "",
+    launchUrl: programs.find((program) => program.slug === "launch-pilot")?.loginUrl || "",
+    qualityUrl: programs.find((program) => program.slug === "quality-pilot")?.loginUrl || "",
+    systemEmail: "assistenza@suitepilot.it",
+    commercialEmail: "commerciale@suitepilot.it",
+    demoDays: 14,
+    sessionHours: 8,
+    suiteName: "Suite Pilot",
+    reportHeading: "Suite Pilot - strumenti professionali per la ristorazione"
+  });
+
+  function updateConfig<K extends keyof typeof config>(key: K, value: (typeof config)[K]) {
+    setConfig((current) => ({ ...current, [key]: value }));
+  }
+
+  const fieldClass =
+    "mt-2 h-11 w-full rounded-2xl border border-[#d0d5dd] bg-white px-3 text-sm font-semibold text-[#101828] outline-none transition focus:border-[#175cd3] focus:ring-2 focus:ring-[#d1e0ff]";
+
   return (
-    <Panel title="Impostazioni sistema" action="Salva impostazioni" onAction={() => window.alert("Impostazioni salvate per questa sessione.")}>
-      <div className="grid gap-4 md:grid-cols-2">
-        {settings.map((setting) => {
-          const Icon = setting.icon;
-          return (
-            <div key={setting.title} className="rounded-3xl border border-[#d9e2ef] bg-white p-5">
-              <Icon className="h-5 w-5 text-[#175cd3]" />
-              <h3 className="mt-4 text-lg font-bold">{setting.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-[#667085]">{setting.text}</p>
+    <Panel title="Sistema" action="Salva configurazione" onAction={() => window.alert("Configurazione salvata per questa sessione.")}>
+      <div className="mb-5 rounded-3xl border border-[#b2ccff] bg-[#eef4ff] p-5">
+        <p className="text-sm font-black uppercase tracking-[0.14em] text-[#175cd3]">Configurazione generale</p>
+        <h3 className="mt-2 text-2xl font-black text-[#101828]">Regole e collegamenti della Suite Pilot</h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#516079]">
+          Questa pagina serve solo per le impostazioni comuni a tutti i programmi: link ufficiali, email di sistema,
+          regole demo, sicurezza di sessione e intestazioni commerciali. Clienti, licenze, pagamenti e programmi restano nelle rispettive sezioni.
+        </p>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <section className="rounded-3xl border border-[#d9e2ef] bg-white p-5">
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#eef4ff] text-[#175cd3]">
+              <ArrowRight className="h-5 w-5" />
             </div>
-          );
-        })}
+            <div>
+              <h3 className="text-lg font-black text-[#101828]">Link programmi</h3>
+              <p className="mt-1 text-sm leading-6 text-[#667085]">Sono gli indirizzi usati dai clienti quando entrano nei singoli software.</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4">
+            <label className="text-sm font-bold text-[#344054]">
+              Margin Pilot
+              <input value={config.marginUrl} onChange={(event) => updateConfig("marginUrl", event.target.value)} className={fieldClass} />
+            </label>
+            <label className="text-sm font-bold text-[#344054]">
+              Launch Pilot
+              <input value={config.launchUrl} onChange={(event) => updateConfig("launchUrl", event.target.value)} className={fieldClass} />
+            </label>
+            <label className="text-sm font-bold text-[#344054]">
+              Quality Pilot
+              <input value={config.qualityUrl} onChange={(event) => updateConfig("qualityUrl", event.target.value)} className={fieldClass} />
+            </label>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-[#d9e2ef] bg-white p-5">
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#ecfdf3] text-[#067647]">
+              <Mail className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-[#101828]">Email e comunicazioni</h3>
+              <p className="mt-1 text-sm leading-6 text-[#667085]">Indirizzi di riferimento per assistenza, recupero accessi e richieste commerciali.</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4">
+            <label className="text-sm font-bold text-[#344054]">
+              Email assistenza
+              <input type="email" value={config.systemEmail} onChange={(event) => updateConfig("systemEmail", event.target.value)} className={fieldClass} />
+            </label>
+            <label className="text-sm font-bold text-[#344054]">
+              Email commerciale
+              <input type="email" value={config.commercialEmail} onChange={(event) => updateConfig("commercialEmail", event.target.value)} className={fieldClass} />
+            </label>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-[#d9e2ef] bg-white p-5">
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#fffaeb] text-[#b54708]">
+              <CalendarClock className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-[#101828]">Regole demo e sicurezza</h3>
+              <p className="mt-1 text-sm leading-6 text-[#667085]">Parametri base per durata demo e controllo sessione degli utenti.</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="text-sm font-bold text-[#344054]">
+              Giorni demo
+              <input
+                type="number"
+                min="0"
+                value={config.demoDays}
+                onChange={(event) => updateConfig("demoDays", Number(event.target.value))}
+                className={fieldClass}
+              />
+            </label>
+            <label className="text-sm font-bold text-[#344054]">
+              Ore sessione
+              <input
+                type="number"
+                min="1"
+                value={config.sessionHours}
+                onChange={(event) => updateConfig("sessionHours", Number(event.target.value))}
+                className={fieldClass}
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-[#d9e2ef] bg-white p-5">
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#f5f3ff] text-[#5925dc]">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-[#101828]">Branding e report</h3>
+              <p className="mt-1 text-sm leading-6 text-[#667085]">Testi generali usati nella suite e nelle intestazioni dei documenti.</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4">
+            <label className="text-sm font-bold text-[#344054]">
+              Nome piattaforma
+              <input value={config.suiteName} onChange={(event) => updateConfig("suiteName", event.target.value)} className={fieldClass} />
+            </label>
+            <label className="text-sm font-bold text-[#344054]">
+              Intestazione report
+              <textarea
+                value={config.reportHeading}
+                onChange={(event) => updateConfig("reportHeading", event.target.value)}
+                className="mt-2 min-h-24 w-full rounded-2xl border border-[#d0d5dd] bg-white px-3 py-3 text-sm font-semibold text-[#101828] outline-none transition focus:border-[#175cd3] focus:ring-2 focus:ring-[#d1e0ff]"
+              />
+            </label>
+          </div>
+        </section>
       </div>
     </Panel>
   );
