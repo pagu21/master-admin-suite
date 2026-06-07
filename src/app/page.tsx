@@ -86,14 +86,14 @@ const pricingPlans = [
     name: "Professionale",
     label: "Più scelto",
     text: "Per ristoratori, consulenti ed esperti che vogliono usare più strumenti e gestire analisi complete.",
-    features: ["più programmi Pilot", "report professionali", "scenari e simulazioni", "pacchetti LaunchPilot 1, 3 o 5 progetti", "licenze e profili configurabili"],
+    features: ["più programmi Pilot", "report professionali", "scenari e simulazioni", "pacchetti LaunchPilot 1, 3 o 5 progetti", "accesso adatto al tuo profilo"],
     cta: "Richiedi una demo"
   },
   {
     name: "Suite",
     label: "Ecosistema completo",
     text: "Per gruppi, consulenti e organizzazioni che vogliono integrare controllo, sviluppo e qualità.",
-    features: ["MarginPilot + LaunchPilot + QualityPilot", "profili multipli", "piani commerciali configurabili", "predisposizione pagamenti e fatturazione"],
+    features: ["MarginPilot + LaunchPilot + QualityPilot", "più utenti e più punti vendita", "percorso di attivazione guidato", "supporto per scegliere la soluzione corretta"],
     cta: "Parla con noi"
   }
 ];
@@ -161,18 +161,18 @@ const howItWorks = [
 
 const commercialTools = [
   {
-    title: "Piano adatto al tuo utilizzo",
-    text: "La Suite può essere configurata in base al tipo di attività, al numero di programmi necessari e al profilo di lavoro: ristoratore, consulente o gruppo.",
+    title: "Soluzione adatta al tuo lavoro",
+    text: "Puoi partire da un solo programma oppure usare più moduli insieme, in base a ciò che devi controllare: margini, apertura del locale o qualità operativa.",
     icon: Sparkles
   },
   {
-    title: "Promozioni e campagne",
-    text: "Struttura pronta per offerte lancio, codici promozionali, prove guidate e condizioni dedicate.",
+    title: "Attivazione semplice",
+    text: "Ti aiutiamo a capire quale percorso scegliere e quali strumenti sono davvero utili per la tua attività, senza complicare l’avvio.",
     icon: Gift
   },
   {
-    title: "Licenze flessibili",
-    text: "Abbonamenti, pacchetti progetto e accessi multi-programma possono convivere nello stesso ecosistema. LaunchPilot può essere venduto anche in pack da 1, 3 o 5 progetti.",
+    title: "Accesso su misura",
+    text: "Ogni utente vede solo i programmi e le funzioni previste dal proprio profilo. LaunchPilot può essere richiesto anche in pacchetti da 1, 3 o 5 progetti.",
     icon: ShieldCheck
   }
 ];
@@ -583,10 +583,10 @@ export default function Home() {
       <section id="prezzi" className="mx-auto max-w-7xl px-6 py-16">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div className="max-w-3xl">
-            <p className="text-sm font-black uppercase tracking-[0.18em] text-[#175cd3]">Prezzi</p>
-            <h2 className="mt-3 text-4xl font-black tracking-tight md:text-5xl">Piani, promozioni e licenze sempre sotto controllo</h2>
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-[#175cd3]">Soluzioni</p>
+            <h2 className="mt-3 text-4xl font-black tracking-tight md:text-5xl">Scegli solo quello che ti serve</h2>
             <p className="mt-4 text-lg leading-8 text-[#516079]">
-              Suite Pilot può essere attivata con formule diverse in base al profilo: ristoratore, consulente, gruppo o attività con più punti vendita. Ogni accesso mostra solo i programmi, le funzioni e le licenze previste.
+              Suite Pilot può essere attivata in modo graduale: un solo programma, più moduli integrati o pacchetti progetto per consulenti e gruppi. Ogni accesso è personalizzato sul profilo dell’utente, così chi entra vede solo gli strumenti utili al proprio lavoro.
             </p>
           </div>
           <Link href="/registrazione" className="inline-flex w-fit items-center gap-2 rounded-full border border-[#c7d7ee] bg-white px-5 py-3 text-sm font-bold text-[#123c69] shadow-sm">
