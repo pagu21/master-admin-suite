@@ -178,18 +178,21 @@ const commercialTools = [
 ];
 
 const featureRows = [
-  { label: "Food Cost Preventivo", margin: true, launch: false, quality: false },
-  { label: "Food Cost Consuntivo", margin: true, launch: false, quality: false },
-  { label: "Budget", margin: true, launch: false, quality: false },
-  { label: "KPI", margin: true, launch: true, quality: true },
+  { label: "Food Cost preventivo per ricetta", margin: true, launch: false, quality: false },
+  { label: "Food Cost consuntivo da vendite reali", margin: true, launch: false, quality: false },
+  { label: "Matrice menu: vincenti, da spingere, da correggere", margin: true, launch: false, quality: false },
+  { label: "Prezzi consigliati e prodotti sotto margine", margin: true, launch: false, quality: false },
+  { label: "Importazione vendite da gestionali e casse", margin: true, launch: false, quality: false },
+  { label: "Budget operativo e obiettivi mensili", margin: true, launch: false, quality: false },
+  { label: "RevPASH e produttività dei posti", margin: true, launch: false, quality: false },
+  { label: "KPI direzionali", margin: true, launch: true, quality: true },
   { label: "Fattibilità economico-finanziaria", margin: false, launch: true, quality: false },
-  { label: "Break Even", margin: true, launch: true, quality: false },
-  { label: "Simulazioni", margin: true, launch: true, quality: true },
+  { label: "Break Even e soglia minima di sicurezza", margin: true, launch: true, quality: false },
+  { label: "Simulazioni e scenari", margin: true, launch: true, quality: true },
   { label: "Procedure operative", margin: false, launch: false, quality: true },
   { label: "Checklist", margin: false, launch: false, quality: true },
   { label: "Standard operativi", margin: false, launch: false, quality: true },
-  { label: "Audit qualità", margin: false, launch: false, quality: true },
-  { label: "Importazione vendite da gestionali", margin: true, launch: false, quality: false }
+  { label: "Audit qualità", margin: false, launch: false, quality: true }
 ];
 
 const moduleFunctions = [
@@ -509,7 +512,7 @@ export default function Home() {
           <p className="text-sm font-black uppercase tracking-[0.18em] text-[#175cd3]">Funzionalità</p>
           <h2 className="mt-3 text-4xl font-black tracking-tight md:text-5xl">Tre moduli integrati, tre obiettivi diversi</h2>
           <p className="mt-4 text-lg leading-8 text-[#516079]">
-            La tabella aiuta a capire subito quale programma usare: controllo dei margini, sviluppo del progetto o qualità operativa.
+            La tabella aiuta a capire subito quale programma usare: MarginPilot lavora sui margini reali e sulle vendite, LaunchPilot sulla fattibilità del progetto, QualityPilot sulla qualità operativa e sull’esperienza cliente.
           </p>
         </div>
         <div className="mt-10 overflow-hidden rounded-[30px] border border-[#d9e2ef] bg-white shadow-sm">
