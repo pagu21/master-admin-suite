@@ -1,31 +1,73 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { programs as suitePrograms, type ProgramSlug } from "@/lib/master-data";
 
-const products = [
-  {
-    name: "Margin Pilot",
-    description: "Controllo marginalità, prezzi, vendite, food cost, budget e redditività.",
-    url: "https://marginpilot-2jjw.vercel.app/cruscotto",
-    accent: "from-blue-600 to-sky-400",
-    status: "Programma attivo"
-  },
-  {
-    name: "Launch Pilot",
-    description: "Prefattibilità economico-finanziaria, investimenti, scenari e sostenibilità del progetto.",
-    url: "https://launchpilot-olive.vercel.app/login",
-    accent: "from-teal-600 to-emerald-400",
-    status: "Programma attivo"
-  },
-  {
-    name: "Quality Pilot",
-    description: "Questionari, audit, customer experience, qualità operativa e report per punti vendita.",
-    url: "https://quality-pilot.vercel.app/login",
-    accent: "from-amber-500 to-orange-400",
-    status: "Programma attivo"
+type AccessRow = {
+  active: boolean | null;
+  programs: { slug: ProgramSlug | null } | { slug: ProgramSlug | null }[] | null;
+  licenses?: Array<{
+    status: "active" | "expired" | "suspended" | "pending" | null;
+    end_date: string | null;
+    created_at: string | null;
+  }> | null;
+};
+
+function firstRelation<T>(value: T | T[] | null | undefined): T | null {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
+
+function isLicenseUsable(access: AccessRow) {
+  if (!access.active) return false;
+  const latestLicense = [...(access.licenses ?? [])].sort((left, right) => {
+    return new Date(right.created_at ?? 0).getTime() - new Date(left.created_at ?? 0).getTime();
+  })[0];
+
+  if (!latestLicense || latestLicense.status !== "active") return false;
+  if (!latestLicense.end_date) return true;
+
+  const today = new Date().toISOString().slice(0, 10);
+  return latestLicense.end_date >= today;
+}
+
+export default async function ProgramsPage() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let userLabel = "";
+  let isGlobalMaster = false;
+  const enabledPrograms = new Set<ProgramSlug>();
+
+  if (user) {
+    const [{ data: profile }, { data: accesses }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("full_name,email,is_admin,is_super_admin,status")
+        .eq("id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("user_program_access")
+        .select("active, programs ( slug ), licenses ( status, end_date, created_at )")
+        .eq("user_id", user.id),
+    ]);
+
+    userLabel = profile?.full_name || profile?.email || user.email || "";
+    isGlobalMaster = profile?.status === "active" && (profile?.is_admin === true || profile?.is_super_admin === true);
+
+    if (isGlobalMaster) {
+      suitePrograms.forEach((program) => enabledPrograms.add(program.slug));
+    } else {
+      ((accesses ?? []) as AccessRow[]).forEach((access) => {
+        const program = firstRelation(access.programs);
+        if (program?.slug && isLicenseUsable(access)) {
+          enabledPrograms.add(program.slug);
+        }
+      });
+    }
   }
-];
 
-export default function ProgramsPage() {
   return (
     <main className="min-h-screen bg-[#f6f8fb] text-[#101828]">
       <section className="mx-auto max-w-6xl px-6 py-10 md:py-16">
@@ -40,8 +82,21 @@ export default function ProgramsPage() {
               <p className="text-sm font-black uppercase tracking-[0.18em] text-[#175cd3]">Area clienti</p>
               <h1 className="mt-3 text-4xl font-black tracking-tight md:text-6xl">Scegli il programma da aprire</h1>
               <p className="mt-4 text-lg font-semibold leading-8 text-[#667085]">
-                Ogni accesso viene riconosciuto in base al profilo e alla licenza assegnata. Se hai più programmi attivi, puoi entrare in quello che ti serve.
+                Ogni accesso viene riconosciuto in base al profilo e alla licenza assegnata. Da qui puoi aprire solo i programmi attivi per il tuo account.
               </p>
+              {userLabel ? (
+                <p className="mt-4 inline-flex rounded-full bg-[#eef4ff] px-4 py-2 text-sm font-black text-[#175cd3]">
+                  Accesso riconosciuto: {userLabel}
+                </p>
+              ) : (
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
+                  Per vedere i programmi collegati alla tua licenza devi accedere all&apos;area clienti. Se non hai ancora un accesso, puoi richiedere l&apos;attivazione.
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link href="/login" className="rounded-full bg-[#123c69] px-4 py-2 text-white">Accedi</Link>
+                    <Link href="/registrazione" className="rounded-full border border-amber-300 bg-white px-4 py-2 text-amber-900">Richiedi attivazione</Link>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#eef4ff] text-[#175cd3]">
               <ShieldCheck className="h-7 w-7" />
@@ -50,8 +105,9 @@ export default function ProgramsPage() {
         </div>
 
         <div className="mt-6 grid gap-5">
-          {products.map((product) => (
-            <a key={product.name} href={product.url} className="group rounded-[32px] border border-[#d9e2ef] bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-[#175cd3] hover:shadow-lg md:p-8">
+          {suitePrograms.map((product) => {
+            const canOpen = Boolean(user && enabledPrograms.has(product.slug));
+            const card = (
               <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div className="flex flex-col gap-5 md:flex-row md:items-center">
                   <div className={`h-20 w-20 rounded-[28px] bg-gradient-to-br ${product.accent}`} />
@@ -61,14 +117,35 @@ export default function ProgramsPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-4 border-t border-[#e4eaf3] pt-5 md:min-w-[260px] md:border-l md:border-t-0 md:pl-8 md:pt-0">
-                  <span className="text-sm font-black text-[#067647]">{product.status}</span>
-                  <span className="grid h-14 w-14 place-items-center rounded-full bg-[#eef4ff] text-[#175cd3] transition group-hover:bg-[#175cd3] group-hover:text-white">
-                    <ArrowRight className="h-6 w-6" />
+                  <span className={canOpen ? "text-sm font-black text-[#067647]" : "text-sm font-black text-[#b54708]"}>
+                    {canOpen ? "Licenza attiva" : user ? "Licenza non attiva" : "Accesso richiesto"}
+                  </span>
+                  <span className={"grid h-14 w-14 place-items-center rounded-full transition " + (canOpen ? "bg-[#eef4ff] text-[#175cd3] group-hover:bg-[#175cd3] group-hover:text-white" : "bg-amber-50 text-amber-700")}>
+                    {canOpen ? <ArrowRight className="h-6 w-6" /> : <LockKeyhole className="h-5 w-5" />}
                   </span>
                 </div>
               </div>
-            </a>
-          ))}
+            );
+
+            return canOpen ? (
+              <a key={product.name} href={product.loginUrl} className="group rounded-[32px] border border-[#d9e2ef] bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-[#175cd3] hover:shadow-lg md:p-8">
+                {card}
+              </a>
+            ) : (
+              <div key={product.name} className="rounded-[32px] border border-amber-200 bg-white p-6 shadow-sm md:p-8">
+                {card}
+                <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
+                  Questo programma non risulta attivo sul tuo profilo. Puoi richiederne l&apos;attivazione, una demo o l&apos;estensione della licenza.
+                  <div className="mt-3">
+                    <Link href={`/registrazione?programma=${product.slug}`} className="inline-flex items-center gap-2 rounded-full bg-[#123c69] px-4 py-2 text-white">
+                      Richiedi attivazione
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="mt-6 grid gap-5 lg:grid-cols-2">

@@ -161,8 +161,8 @@ const howItWorks = [
 
 const commercialTools = [
   {
-    title: "Prezzi gestibili",
-    text: "Piani, durata, programmi inclusi e limiti possono essere amministrati dal pannello commerciale.",
+    title: "Piano adatto al tuo utilizzo",
+    text: "La Suite può essere configurata in base al tipo di attività, al numero di programmi necessari e al profilo di lavoro: ristoratore, consulente o gruppo.",
     icon: Sparkles
   },
   {
@@ -700,7 +700,7 @@ export default function Home() {
                   <option>LaunchPilot</option>
                   <option>QualityPilot</option>
                   <option>Tutta la Suite Pilot</option>
-                  <option>Promozioni e prezzi</option>
+                  <option>Piani e condizioni disponibili</option>
                 </select>
               </label>
               <label className="grid gap-2 text-sm font-black text-[#344054]">
