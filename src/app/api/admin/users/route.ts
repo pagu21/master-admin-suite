@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { licenseLabel, programName, remainingProjects, type AdminUser, type LicenseType, type ProgramSlug } from "@/lib/master-data";
+import { licenseLabel, programName, programs, remainingProjects, type AdminUser, type LicenseType, type ProgramSlug } from "@/lib/master-data";
 
 type CreateUserPayload = {
   mode?: "new" | "existing";
@@ -102,6 +102,50 @@ function resolveEndDate(assignment: { licenseType: LicenseType; startDate: strin
   if (assignment.endDate) return assignment.endDate;
   if (assignment.licenseType === "free") return addDaysIso(assignment.startDate, DEMO_LICENSE_DAYS);
   return null;
+}
+
+const baseRoles = [
+  { code: "admin", name: "Master", description: "Gestione completa del programma" },
+  { code: "consulente", name: "Consulente", description: "Gestione più clienti e progetti" },
+  { code: "ristoratore", name: "Ristoratore", description: "Gestione dei propri progetti" },
+  { code: "utente", name: "Utente", description: "Accesso operativo standard" }
+] as const;
+
+async function ensureProgramCatalog(admin: ReturnType<typeof createAdminClient>) {
+  for (const localProgram of programs) {
+    const { data: program, error: programError } = await admin
+      .from("programs")
+      .upsert({
+        name: localProgram.name,
+        slug: localProgram.slug,
+        description: localProgram.description,
+        login_url: localProgram.loginUrl,
+        active: localProgram.active
+      }, { onConflict: "slug" })
+      .select("id")
+      .single();
+
+    if (programError || !program) {
+      return { error: programError?.message || `Programma non sincronizzato: ${localProgram.slug}` };
+    }
+
+    for (const role of baseRoles) {
+      const { error: roleError } = await admin
+        .from("roles")
+        .upsert({
+          program_id: program.id,
+          code: role.code,
+          name: role.name,
+          description: role.description
+        }, { onConflict: "program_id,code" });
+
+      if (roleError) {
+        return { error: roleError.message };
+      }
+    }
+  }
+
+  return { error: null };
 }
 
 function createAdminClient() {
@@ -255,6 +299,11 @@ export async function POST(request: Request) {
   const context = await requireAdmin();
   if ("error" in context) return context.error;
   const { admin, currentUser } = context;
+
+  const catalogSync = await ensureProgramCatalog(admin);
+  if (catalogSync.error) {
+    return NextResponse.json({ error: `Catalogo programmi non sincronizzato: ${catalogSync.error}` }, { status: 400 });
+  }
 
   let userId = payload.existingUserId ?? "";
 
