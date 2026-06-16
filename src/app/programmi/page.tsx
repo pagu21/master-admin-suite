@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
+import { redirect } from "next/navigation";
+import { ArrowLeft, ArrowRight, LockKeyhole, LogOut, ShieldCheck } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { programs as suitePrograms, type ProgramSlug } from "@/lib/master-data";
 
@@ -12,6 +13,10 @@ type AccessRow = {
     created_at: string | null;
   }> | null;
 };
+
+function hasSupabaseServerConfig() {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
 
 function firstRelation<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
@@ -30,17 +35,29 @@ function isLicenseUsable(access: AccessRow) {
   return latestLicense.end_date >= today;
 }
 
-export default async function ProgramsPage() {
+async function signOutFromPrograms() {
+  "use server";
+
+  if (!hasSupabaseServerConfig()) {
+    redirect("/programmi");
+  }
+
   const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut();
+  redirect("/programmi");
+}
+
+export default async function ProgramsPage() {
+  const supabase = hasSupabaseServerConfig() ? await createSupabaseServerClient() : null;
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
 
   let userLabel = "";
   let isGlobalMaster = false;
   const enabledPrograms = new Set<ProgramSlug>();
 
-  if (user) {
+  if (user && supabase) {
     const [{ data: profile }, { data: accesses }] = await Promise.all([
       supabase
         .from("profiles")
@@ -85,9 +102,11 @@ export default async function ProgramsPage() {
                 Ogni accesso viene riconosciuto in base al profilo e alla licenza assegnata. Da qui puoi aprire solo i programmi attivi per il tuo account.
               </p>
               {userLabel ? (
-                <p className="mt-4 inline-flex rounded-full bg-[#eef4ff] px-4 py-2 text-sm font-black text-[#175cd3]">
-                  Accesso riconosciuto: {userLabel}
-                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <p className="inline-flex rounded-full bg-[#eef4ff] px-4 py-2 text-sm font-black text-[#175cd3]">
+                    Accesso riconosciuto: {userLabel}
+                  </p>
+                </div>
               ) : (
                 <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
                   Per vedere i programmi collegati alla tua licenza devi accedere all&apos;area clienti. Se non hai ancora un accesso, puoi richiedere l&apos;attivazione.
@@ -98,8 +117,21 @@ export default async function ProgramsPage() {
                 </div>
               )}
             </div>
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#eef4ff] text-[#175cd3]">
-              <ShieldCheck className="h-7 w-7" />
+            <div className="flex shrink-0 flex-col items-start gap-3 md:items-end">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#eef4ff] text-[#175cd3]">
+                <ShieldCheck className="h-7 w-7" />
+              </div>
+              {userLabel ? (
+                <form action={signOutFromPrograms}>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#123c69] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#175cd3]"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Cambia utenza
+                  </button>
+                </form>
+              ) : null}
             </div>
           </div>
         </div>
@@ -162,7 +194,7 @@ export default async function ProgramsPage() {
           <div className="rounded-[28px] border border-[#d9e2ef] bg-white p-6 shadow-sm">
           <h2 className="text-xl font-black">Non hai ancora un accesso?</h2>
           <p className="mt-2 text-base font-semibold leading-7 text-[#667085]">
-            Richiedi l'attivazione scegliendo programmi, profilo e licenza. Gli accessi saranno abilitati dopo la verifica.
+            Richiedi l&apos;attivazione scegliendo programmi, profilo e licenza. Gli accessi saranno abilitati dopo la verifica.
           </p>
           <Link href="/registrazione" className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#123c69] px-5 py-3 text-sm font-black text-white transition hover:bg-[#175cd3]">
             Richiedi registrazione
