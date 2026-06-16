@@ -2,16 +2,26 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ArrowRight, LockKeyhole, LogOut, ShieldCheck } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { programs as suitePrograms, type ProgramSlug } from "@/lib/master-data";
+import { licenseLabel, programs as suitePrograms, type LicenseStatus, type LicenseType, type ProgramSlug, type RoleCode } from "@/lib/master-data";
 
 type AccessRow = {
   active: boolean | null;
   programs: { slug: ProgramSlug | null } | { slug: ProgramSlug | null }[] | null;
+  roles: { code: RoleCode | null } | { code: RoleCode | null }[] | null;
   licenses?: Array<{
-    status: "active" | "expired" | "suspended" | "pending" | null;
+    type: LicenseType | null;
+    status: LicenseStatus | null;
+    start_date: string | null;
     end_date: string | null;
+    projects_purchased: number | null;
+    projects_used: number | null;
     created_at: string | null;
   }> | null;
+};
+
+type ProgramLicenseInfo = {
+  role: RoleCode | null;
+  license: NonNullable<AccessRow["licenses"]>[number] | null;
 };
 
 function hasSupabaseServerConfig() {
@@ -35,6 +45,46 @@ function isLicenseUsable(access: AccessRow) {
   return latestLicense.end_date >= today;
 }
 
+function latestLicense(access: AccessRow) {
+  return [...(access.licenses ?? [])].sort((left, right) => {
+    return new Date(right.created_at ?? 0).getTime() - new Date(left.created_at ?? 0).getTime();
+  })[0] ?? null;
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "Nessuna scadenza";
+  return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(`${value}T12:00:00`));
+}
+
+function daysUntil(value: string | null | undefined) {
+  if (!value) return null;
+  const today = new Date();
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const target = new Date(`${value}T12:00:00`);
+  const targetUtc = Date.UTC(target.getFullYear(), target.getMonth(), target.getDate());
+  return Math.ceil((targetUtc - todayUtc) / 86_400_000);
+}
+
+function roleLabel(role: RoleCode | null | undefined) {
+  const labels: Record<RoleCode, string> = {
+    admin: "Master",
+    consulente: "Consulente",
+    ristoratore: "Ristoratore",
+    utente: "Utente",
+  };
+  return role ? labels[role] : "Ruolo non indicato";
+}
+
+function licenseStatusLabel(status: LicenseStatus | null | undefined) {
+  const labels: Record<LicenseStatus, string> = {
+    active: "Attiva",
+    expired: "Scaduta",
+    suspended: "Sospesa",
+    pending: "In attesa",
+  };
+  return status ? labels[status] : "Non indicata";
+}
+
 async function signOutFromPrograms() {
   "use server";
 
@@ -56,6 +106,7 @@ export default async function ProgramsPage() {
   let userLabel = "";
   let isGlobalMaster = false;
   const enabledPrograms = new Set<ProgramSlug>();
+  const programLicenses = new Map<ProgramSlug, ProgramLicenseInfo>();
 
   if (user && supabase) {
     const [{ data: profile }, { data: accesses }] = await Promise.all([
@@ -66,7 +117,7 @@ export default async function ProgramsPage() {
         .maybeSingle(),
       supabase
         .from("user_program_access")
-        .select("active, programs ( slug ), licenses ( status, end_date, created_at )")
+        .select("active, programs ( slug ), roles ( code ), licenses ( type, status, start_date, end_date, projects_purchased, projects_used, created_at )")
         .eq("user_id", user.id),
     ]);
 
@@ -74,12 +125,25 @@ export default async function ProgramsPage() {
     isGlobalMaster = profile?.status === "active" && (profile?.is_admin === true || profile?.is_super_admin === true);
 
     if (isGlobalMaster) {
-      suitePrograms.forEach((program) => enabledPrograms.add(program.slug));
+      suitePrograms.forEach((program) => {
+        enabledPrograms.add(program.slug);
+        programLicenses.set(program.slug, {
+          role: "admin",
+          license: null,
+        });
+      });
     } else {
       ((accesses ?? []) as AccessRow[]).forEach((access) => {
         const program = firstRelation(access.programs);
-        if (program?.slug && isLicenseUsable(access)) {
-          enabledPrograms.add(program.slug);
+        if (program?.slug) {
+          const canOpen = isLicenseUsable(access);
+          if (canOpen) {
+            enabledPrograms.add(program.slug);
+          }
+          programLicenses.set(program.slug, {
+            role: firstRelation(access.roles)?.code ?? null,
+            license: latestLicense(access),
+          });
         }
       });
     }
@@ -131,23 +195,66 @@ export default async function ProgramsPage() {
         <div className="mt-6 grid gap-5">
           {suitePrograms.map((product) => {
             const canOpen = Boolean(user && enabledPrograms.has(product.slug));
+            const licenseInfo = programLicenses.get(product.slug);
+            const license = licenseInfo?.license ?? null;
+            const missingDays = daysUntil(license?.end_date);
+            const showLicenseDetails = Boolean(userLabel && !isGlobalMaster && licenseInfo);
+            const hasProjectLimit = typeof license?.projects_purchased === "number" && license.projects_purchased > 0;
             const card = (
-              <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                <div className="flex flex-col gap-5 md:flex-row md:items-center">
-                  <div className={`h-20 w-20 rounded-[28px] bg-gradient-to-br ${product.accent}`} />
-                  <div>
-                    <h2 className="text-3xl font-black tracking-tight md:text-4xl">{product.name}</h2>
-                    <p className="mt-2 max-w-3xl text-base font-semibold leading-7 text-[#667085]">{product.description}</p>
+              <div className="grid gap-6">
+                <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-col gap-5 md:flex-row md:items-center">
+                    <div className={`h-20 w-20 rounded-[28px] bg-gradient-to-br ${product.accent}`} />
+                    <div>
+                      <h2 className="text-3xl font-black tracking-tight md:text-4xl">{product.name}</h2>
+                      <p className="mt-2 max-w-3xl text-base font-semibold leading-7 text-[#667085]">{product.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 border-t border-[#e4eaf3] pt-5 md:min-w-[260px] md:border-l md:border-t-0 md:pl-8 md:pt-0">
+                    <span className={canOpen ? "text-sm font-black text-[#067647]" : "text-sm font-black text-[#b54708]"}>
+                      {canOpen ? "Licenza attiva" : user ? "Licenza non attiva" : "Accesso richiesto"}
+                    </span>
+                    <span className={"grid h-14 w-14 place-items-center rounded-full transition " + (canOpen ? "bg-[#eef4ff] text-[#175cd3] group-hover:bg-[#175cd3] group-hover:text-white" : "bg-amber-50 text-amber-700")}>
+                      {canOpen ? <ArrowRight className="h-6 w-6" /> : <LockKeyhole className="h-5 w-5" />}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-4 border-t border-[#e4eaf3] pt-5 md:min-w-[260px] md:border-l md:border-t-0 md:pl-8 md:pt-0">
-                  <span className={canOpen ? "text-sm font-black text-[#067647]" : "text-sm font-black text-[#b54708]"}>
-                    {canOpen ? "Licenza attiva" : user ? "Licenza non attiva" : "Accesso richiesto"}
-                  </span>
-                  <span className={"grid h-14 w-14 place-items-center rounded-full transition " + (canOpen ? "bg-[#eef4ff] text-[#175cd3] group-hover:bg-[#175cd3] group-hover:text-white" : "bg-amber-50 text-amber-700")}>
-                    {canOpen ? <ArrowRight className="h-6 w-6" /> : <LockKeyhole className="h-5 w-5" />}
-                  </span>
-                </div>
+                {showLicenseDetails ? (
+                  <dl className="grid gap-3 rounded-2xl border border-[#e4eaf3] bg-[#f8fafc] p-4 text-sm font-semibold text-[#667085] md:grid-cols-4">
+                    <div>
+                      <dt className="text-[11px] font-black uppercase tracking-[0.14em] text-[#52627a]">Licenza</dt>
+                      <dd className="mt-1 text-[#101828]">{license?.type ? licenseLabel(license.type) : "Non assegnata"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] font-black uppercase tracking-[0.14em] text-[#52627a]">Ruolo</dt>
+                      <dd className="mt-1 text-[#101828]">{roleLabel(licenseInfo?.role)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] font-black uppercase tracking-[0.14em] text-[#52627a]">Scadenza</dt>
+                      <dd className="mt-1 text-[#101828]">{formatDate(license?.end_date)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] font-black uppercase tracking-[0.14em] text-[#52627a]">Giorni mancanti</dt>
+                      <dd className="mt-1 text-[#101828]">
+                        {missingDays === null
+                            ? "Illimitato"
+                            : missingDays >= 0
+                              ? `${missingDays} giorni`
+                              : `Scaduta da ${Math.abs(missingDays)} giorni`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] font-black uppercase tracking-[0.14em] text-[#52627a]">Stato</dt>
+                      <dd className="mt-1 text-[#101828]">{licenseStatusLabel(license?.status)}</dd>
+                    </div>
+                    {hasProjectLimit ? (
+                      <div>
+                        <dt className="text-[11px] font-black uppercase tracking-[0.14em] text-[#52627a]">Progetti</dt>
+                        <dd className="mt-1 text-[#101828]">{license?.projects_used ?? 0}/{license.projects_purchased}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                ) : null}
               </div>
             );
 
