@@ -198,7 +198,7 @@ export default async function ProgramsPage() {
             const licenseInfo = programLicenses.get(product.slug);
             const license = licenseInfo?.license ?? null;
             const missingDays = daysUntil(license?.end_date);
-            const showLicenseDetails = Boolean(userLabel && !isGlobalMaster && licenseInfo);
+            const showLicenseDetails = Boolean(userLabel && !isGlobalMaster);
             const hasProjectLimit = typeof license?.projects_purchased === "number" && license.projects_purchased > 0;
             const card = (
               <div className="grid gap-6">
@@ -266,8 +266,10 @@ export default async function ProgramsPage() {
               <div key={product.name} className="rounded-[32px] border border-amber-200 bg-white p-6 shadow-sm md:p-8">
                 {card}
                 <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
-                  Questo programma non risulta attivo sul tuo profilo. Puoi richiederne l&apos;attivazione, una demo o l&apos;estensione della licenza.
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  {user && !licenseInfo ? (
+                    <p>Questo programma non ha ancora una licenza disponibile sul tuo profilo. Puoi richiederne l&apos;attivazione, una demo o l&apos;estensione.</p>
+                  ) : null}
+                  <div className={`${user ? "mt-3 " : ""}flex flex-wrap gap-2`}>
                     <a href={product.loginUrl} className="inline-flex items-center gap-2 rounded-full border border-[#123c69] bg-white px-4 py-2 text-[#123c69] transition hover:bg-[#eef4ff]">
                       Accedi se già cliente
                       <ArrowRight className="h-4 w-4" />
