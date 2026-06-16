@@ -107,15 +107,7 @@ export default async function ProgramsPage() {
                     Accesso riconosciuto: {userLabel}
                   </p>
                 </div>
-              ) : (
-                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
-                  Per vedere i programmi collegati alla tua licenza devi accedere all&apos;area clienti. Se non hai ancora un accesso, puoi richiedere l&apos;attivazione.
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Link href="/login" className="rounded-full bg-[#123c69] px-4 py-2 text-white">Accedi</Link>
-                    <Link href="/registrazione" className="rounded-full border border-amber-300 bg-white px-4 py-2 text-amber-900">Richiedi attivazione</Link>
-                  </div>
-                </div>
-              )}
+              ) : null}
             </div>
             <div className="flex shrink-0 flex-col items-start gap-3 md:items-end">
               <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#eef4ff] text-[#175cd3]">
